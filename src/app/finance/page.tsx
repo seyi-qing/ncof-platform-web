@@ -1,3 +1,525 @@
 'use client'
-import {useEffect,useState} from 'react';import {Plus,RefreshCw,WalletCards} from 'lucide-react';import AppShell from '@/components/AppShell';import {api} from '@/lib/api';import {getRole} from '@/lib/auth';import {Card,PageHeader,Table,Button,Modal,Field,Select,ErrorBox,SuccessBox,Empty,Stat} from '@/components/UI';
-export default function Finance(){const role=getRole();const[dues,setDues]=useState<any[]>([]);const[members,setMembers]=useState<any[]>([]);const[summary,setSummary]=useState<any>(null);const[open,setOpen]=useState<'dues'|'tx'|null>(null);const[err,setErr]=useState('');const[success,setSuccess]=useState('');const now=new Date();const[period,setPeriod]=useState({year:now.getFullYear(),month:now.getMonth()+1,amount:'0'});const[tx,setTx]=useState({member_id:'',account_type:'dues',transaction_type:'payment',amount:'',direction:'credit',description:''});const load=async()=>{setErr('');try{const d=await api<any[]>(`/finance/dues?year=${period.year}&month=${period.month}`);setDues(d);if(role!=='member'){const m=await api<any[]>('/members');setMembers(m)} }catch(e:any){setErr(e.message)}};useEffect(()=>{void load()},[period.year,period.month]);async function gen(e:any){e.preventDefault();try{const r=await api<any>('/finance/dues/generate',{method:'POST',body:JSON.stringify({year:Number(period.year),month:Number(period.month),amount:Number(period.amount)})});setSuccess(`Generated ${r.created} dues records.`);setOpen(null);load()}catch(e:any){setErr(e.message)}}async function post(e:any){e.preventDefault();try{const r=await api<any>('/finance/transactions',{method:'POST',body:JSON.stringify({...tx,amount:Number(tx.amount)})});setSuccess(`Transaction ${r.reference} posted.`);setOpen(null);load()}catch(e:any){setErr(e.message)}}return <AppShell title="Finance"><div className="content"><PageHeader title="Finance" description="Dues, member transactions and financial controls." action={<div style={{display:'flex',gap:8}}>{role!=='member'&&<><Button variant="secondary" onClick={()=>setOpen('dues')}>Generate dues</Button><Button onClick={()=>setOpen('tx')}><Plus size={15}/>Post transaction</Button></>}</div>}/>{err&&<ErrorBox message={err}/>} {success&&<SuccessBox message={success}/>}<div className="grid grid-3"><Stat label="Dues records" value={dues.length} icon={WalletCards}/><Stat label="Paid" value={dues.filter(x=>x.status==='paid').length}/><Stat label="Outstanding" value={dues.filter(x=>x.status!=='paid').length}/></div><Card><div className="section-title"><h3>Monthly dues</h3><div style={{display:'flex',gap:8,alignItems:'center'}}><Field label="Year" type="number" value={period.year} onChange={(e:any)=>setPeriod({...period,year:Number(e.target.value)})}/><Field label="Month" type="number" min="1" max="12" value={period.month} onChange={(e:any)=>setPeriod({...period,month:Number(e.target.value)})}/><button className="iconbtn" onClick={load}><RefreshCw size={15}/></button></div></div>{dues.length?<Table headers={['Member','Period','Due','Paid','Status']} rows={dues.map(x=>[x.member_id,`${x.year}-${String(x.month).padStart(2,'0')}`,x.amount_due,x.amount_paid,<span className={'badge '+(x.status==='paid'?'green':x.status==='partial'?'amber':'red')}>{x.status}</span>])}/>:<Empty text="No dues records for this period."/>}</Card></div>{open==='dues'&&<Modal title="Generate monthly dues" onClose={()=>setOpen(null)}><form onSubmit={gen}><div className="form-grid"><Field label="Year" type="number" value={period.year} onChange={e=>setPeriod({...period,year:Number(e.target.value)})}/><Field label="Month" type="number" min="1" max="12" value={period.month} onChange={e=>setPeriod({...period,month:Number(e.target.value)})}/></div><Field label="Amount" type="number" step="0.01" value={period.amount} onChange={e=>setPeriod({...period,amount:e.target.value})} required/><div className="form-actions"><Button variant="ghost" type="button" onClick={()=>setOpen(null)}>Cancel</Button><Button>Generate</Button></div></form></Modal>}{open==='tx'&&<Modal title="Post financial transaction" onClose={()=>setOpen(null)}><form onSubmit={post}><Select label="Member" value={tx.member_id} onChange={e=>setTx({...tx,member_id:e.target.value})} required><option value="">Select member</option>{members.map(m=><option key={m.id} value={m.id}>{m.member_no} — {m.full_name}</option>)}</Select><div className="form-grid"><Select label="Account" value={tx.account_type} onChange={e=>setTx({...tx,account_type:e.target.value})}><option value="dues">Dues</option><option value="savings">Savings</option><option value="welfare">Welfare</option><option value="loan">Loan</option></Select><Select label="Direction" value={tx.direction} onChange={e=>setTx({...tx,direction:e.target.value})}><option value="credit">Credit</option><option value="debit">Debit</option></Select></div><Field label="Transaction type" value={tx.transaction_type} onChange={e=>setTx({...tx,transaction_type:e.target.value})} required/><Field label="Amount" type="number" step="0.01" value={tx.amount} onChange={e=>setTx({...tx,amount:e.target.value})} required/><Field label="Description" value={tx.description} onChange={e=>setTx({...tx,description:e.target.value})}/><div className="form-actions"><Button variant="ghost" type="button" onClick={()=>setOpen(null)}>Cancel</Button><Button>Post transaction</Button></div></form></Modal>}</AppShell>}
+
+import { useEffect, useState } from 'react'
+import {
+  Plus,
+  RefreshCw,
+  WalletCards,
+} from 'lucide-react'
+
+import AppShell from '@/components/AppShell'
+import { api } from '@/lib/api'
+import { getRole } from '@/lib/auth'
+
+import {
+  Card,
+  PageHeader,
+  Table,
+  Button,
+  Modal,
+  Field,
+  Select,
+  ErrorBox,
+  SuccessBox,
+  Empty,
+  Stat,
+} from '@/components/UI'
+
+export default function Finance() {
+  const role = getRole()
+
+  const [dues, setDues] = useState<any[]>([])
+  const [members, setMembers] = useState<any[]>([])
+
+  const [open, setOpen] =
+    useState<'dues' | 'tx' | null>(null)
+
+  const [err, setErr] = useState('')
+  const [success, setSuccess] = useState('')
+
+  const now = new Date()
+
+  const [period, setPeriod] = useState({
+    year: now.getFullYear(),
+    month: now.getMonth() + 1,
+    amount: '0',
+  })
+
+  const [tx, setTx] = useState({
+    member_id: '',
+    account_type: 'dues',
+    transaction_type: 'payment',
+    amount: '',
+    direction: 'credit',
+    description: '',
+  })
+
+  const load = async () => {
+    setErr('')
+
+    try {
+      const duesData = await api<any[]>(
+        `/finance/dues?year=${period.year}&month=${period.month}`,
+      )
+
+      setDues(duesData)
+
+      if (role !== 'member') {
+        const memberData =
+          await api<any[]>('/members')
+
+        setMembers(memberData)
+      }
+    } catch (e: any) {
+      setErr(e.message)
+    }
+  }
+
+  useEffect(() => {
+    void load()
+  }, [period.year, period.month])
+
+  async function gen(e: any) {
+    e.preventDefault()
+    setErr('')
+
+    try {
+      const r = await api<any>(
+        '/finance/dues/generate',
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            year: Number(period.year),
+            month: Number(period.month),
+            amount: Number(period.amount),
+          }),
+        },
+      )
+
+      setSuccess(
+        `Generated ${r.created} dues records.`,
+      )
+
+      setOpen(null)
+      load()
+    } catch (e: any) {
+      setErr(e.message)
+    }
+  }
+
+  async function post(e: any) {
+    e.preventDefault()
+    setErr('')
+
+    try {
+      const r = await api<any>(
+        '/finance/transactions',
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            ...tx,
+            amount: Number(tx.amount),
+          }),
+        },
+      )
+
+      setSuccess(
+        `Transaction ${r.reference} posted.`,
+      )
+
+      setOpen(null)
+      load()
+    } catch (e: any) {
+      setErr(e.message)
+    }
+  }
+
+  const memberMap = new Map(
+    members.map((m) => [m.id, m]),
+  )
+
+  return (
+    <AppShell title="Finance">
+      <div className="content">
+        <PageHeader
+          title="Finance"
+          description="Dues, member transactions and financial controls."
+          action={
+            <div
+              style={{
+                display: 'flex',
+                gap: 8,
+              }}
+            >
+              {role !== 'member' && (
+                <>
+                  <Button
+                    variant="secondary"
+                    onClick={() =>
+                      setOpen('dues')
+                    }
+                  >
+                    Generate dues
+                  </Button>
+
+                  <Button
+                    onClick={() =>
+                      setOpen('tx')
+                    }
+                  >
+                    <Plus size={15} />
+                    Post transaction
+                  </Button>
+                </>
+              )}
+            </div>
+          }
+        />
+
+        {err && <ErrorBox message={err} />}
+        {success && (
+          <SuccessBox message={success} />
+        )}
+
+        <div className="grid grid-3">
+          <Stat
+            label="Dues records"
+            value={dues.length}
+            icon={WalletCards}
+          />
+
+          <Stat
+            label="Paid"
+            value={
+              dues.filter(
+                (x) => x.status === 'paid',
+              ).length
+            }
+          />
+
+          <Stat
+            label="Outstanding"
+            value={
+              dues.filter(
+                (x) => x.status !== 'paid',
+              ).length
+            }
+          />
+        </div>
+
+        <Card>
+          <div className="section-title">
+            <h3>Monthly dues</h3>
+
+            <div
+              style={{
+                display: 'flex',
+                gap: 8,
+                alignItems: 'center',
+              }}
+            >
+              <Field
+                label="Year"
+                type="number"
+                value={period.year}
+                onChange={(e: any) =>
+                  setPeriod({
+                    ...period,
+                    year: Number(e.target.value),
+                  })
+                }
+              />
+
+              <Field
+                label="Month"
+                type="number"
+                min="1"
+                max="12"
+                value={period.month}
+                onChange={(e: any) =>
+                  setPeriod({
+                    ...period,
+                    month: Number(e.target.value),
+                  })
+                }
+              />
+
+              <button
+                className="iconbtn"
+                onClick={load}
+              >
+                <RefreshCw size={15} />
+              </button>
+            </div>
+          </div>
+
+          {dues.length ? (
+            <Table
+              headers={[
+                'Member',
+                'Period',
+                'Due',
+                'Paid',
+                'Status',
+              ]}
+              rows={dues.map((x) => {
+                const member =
+                  memberMap.get(x.member_id)
+
+                return [
+                  <span>
+                    <b>
+                      {member?.member_no ||
+                        x.member_id}
+                    </b>
+
+                    {member?.full_name && (
+                      <small
+                        style={{
+                          display: 'block',
+                          opacity: 0.7,
+                        }}
+                      >
+                        {member.full_name}
+                      </small>
+                    )}
+                  </span>,
+
+                  `${x.year}-${String(
+                    x.month,
+                  ).padStart(2, '0')}`,
+
+                  x.amount_due,
+
+                  x.amount_paid,
+
+                  <span
+                    className={
+                      'badge ' +
+                      (x.status === 'paid'
+                        ? 'green'
+                        : x.status === 'partial'
+                          ? 'amber'
+                          : 'red')
+                    }
+                  >
+                    {x.status}
+                  </span>,
+                ]
+              })}
+            />
+          ) : (
+            <Empty text="No dues records for this period." />
+          )}
+        </Card>
+      </div>
+
+      {open === 'dues' && (
+        <Modal
+          title="Generate monthly dues"
+          onClose={() => setOpen(null)}
+        >
+          <form onSubmit={gen}>
+            <div className="form-grid">
+              <Field
+                label="Year"
+                type="number"
+                value={period.year}
+                onChange={(e) =>
+                  setPeriod({
+                    ...period,
+                    year: Number(
+                      e.target.value,
+                    ),
+                  })
+                }
+              />
+
+              <Field
+                label="Month"
+                type="number"
+                min="1"
+                max="12"
+                value={period.month}
+                onChange={(e) =>
+                  setPeriod({
+                    ...period,
+                    month: Number(
+                      e.target.value,
+                    ),
+                  })
+                }
+              />
+            </div>
+
+            <Field
+              label="Amount"
+              type="number"
+              step="0.01"
+              value={period.amount}
+              onChange={(e) =>
+                setPeriod({
+                  ...period,
+                  amount: e.target.value,
+                })
+              }
+              required
+            />
+
+            <div className="form-actions">
+              <Button
+                variant="ghost"
+                type="button"
+                onClick={() =>
+                  setOpen(null)
+                }
+              >
+                Cancel
+              </Button>
+
+              <Button>
+                Generate
+              </Button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {open === 'tx' && (
+        <Modal
+          title="Post financial transaction"
+          onClose={() => setOpen(null)}
+        >
+          <form onSubmit={post}>
+            <Select
+              label="Member"
+              value={tx.member_id}
+              onChange={(e) =>
+                setTx({
+                  ...tx,
+                  member_id:
+                    e.target.value,
+                })
+              }
+              required
+            >
+              <option value="">
+                Select member
+              </option>
+
+              {members.map((m) => (
+                <option
+                  key={m.id}
+                  value={m.id}
+                >
+                  {m.member_no} — {m.full_name}
+                </option>
+              ))}
+            </Select>
+
+            <div className="form-grid">
+              <Select
+                label="Account"
+                value={tx.account_type}
+                onChange={(e) =>
+                  setTx({
+                    ...tx,
+                    account_type:
+                      e.target.value,
+                  })
+                }
+              >
+                <option value="dues">
+                  Dues
+                </option>
+                <option value="savings">
+                  Savings
+                </option>
+                <option value="welfare">
+                  Welfare
+                </option>
+                <option value="loan">
+                  Loan
+                </option>
+              </Select>
+
+              <Select
+                label="Direction"
+                value={tx.direction}
+                onChange={(e) =>
+                  setTx({
+                    ...tx,
+                    direction:
+                      e.target.value,
+                  })
+                }
+              >
+                <option value="credit">
+                  Credit
+                </option>
+                <option value="debit">
+                  Debit
+                </option>
+              </Select>
+            </div>
+
+            <Field
+              label="Transaction type"
+              value={tx.transaction_type}
+              onChange={(e) =>
+                setTx({
+                  ...tx,
+                  transaction_type:
+                    e.target.value,
+                })
+              }
+              required
+            />
+
+            <Field
+              label="Amount"
+              type="number"
+              step="0.01"
+              value={tx.amount}
+              onChange={(e) =>
+                setTx({
+                  ...tx,
+                  amount: e.target.value,
+                })
+              }
+              required
+            />
+
+            <Field
+              label="Description"
+              value={tx.description}
+              onChange={(e) =>
+                setTx({
+                  ...tx,
+                  description:
+                    e.target.value,
+                })
+              }
+            />
+
+            <div className="form-actions">
+              <Button
+                variant="ghost"
+                type="button"
+                onClick={() =>
+                  setOpen(null)
+                }
+              >
+                Cancel
+              </Button>
+
+              <Button>
+                Post transaction
+              </Button>
+            </div>
+          </form>
+        </Modal>
+      )}
+    </AppShell>
+  )
+}
