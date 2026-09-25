@@ -13,3 +13,6 @@ export function Field({label,...p}:any){return <label className="field"><span>{l
 export function Select({label,children,...p}:any){return <label className="field"><span>{label}</span><select {...p}>{children}</select></label>}
 export function Textarea({label,...p}:any){return <label className="field"><span>{label}</span><textarea {...p}/></label>}
 export function Table({headers,rows}:{headers:string[];rows:React.ReactNode[][]}){return <div className="table-wrap"><table><thead><tr>{headers.map(h=><th key={h}>{h}</th>)}</tr></thead><tbody>{rows.map((r,i)=><tr key={i}>{r.map((c,j)=><td key={j}>{c}</td>)}</tr>)}</tbody></table></div>}
+
+export function Badge({children, tone='gray'}:{children:React.ReactNode;tone?:'gray'|'green'|'red'|'amber'|'blue'}){return <span className={'badge '+tone}>{children}</span>}
+export function Loading({text='Loading…'}:{text?:string}){return <div className="empty"><Loader2 className="spin" size={18}/> {text}</div>}
