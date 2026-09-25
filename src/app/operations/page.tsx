@@ -30,7 +30,7 @@ export default function Operations() {
     role === 'member' || REQUEST_ROLES.has(role)
 
   const [tab, setTab] = useState<
-    'loans' | 'withdrawals' | 'welfare' | 'statement'
+    'loans' | 'withdrawals' | 'welfare'
   >('loans')
 
   const [data, setData] = useState<any[]>([])
@@ -60,10 +60,14 @@ export default function Operations() {
             ? '/operations/savings/withdrawals'
             : '/operations/welfare/claims'
 
-      setData(await api<any[]>(path))
+      const records = await api<any[]>(path)
+      setData(records)
 
       if (role !== 'member') {
-        setMembers(await api<any[]>('/members'))
+        const memberData =
+          await api<any[]>('/members')
+
+        setMembers(memberData)
       }
     } catch (e: any) {
       setErr(e.message)
@@ -75,8 +79,8 @@ export default function Operations() {
   }, [tab])
 
   /*
-   * Convert database member UUIDs into human-readable
-   * member numbers and names.
+   * Map database UUIDs to human-readable
+   * NCOF member numbers and names.
    */
   const memberMap = new Map(
     members.map((member) => [
@@ -113,6 +117,7 @@ export default function Operations() {
 
   function openRequest(kind: string) {
     setErr('')
+    setSuccess('')
     setOpen(kind)
 
     setForm({
@@ -129,24 +134,29 @@ export default function Operations() {
   async function create(e: any) {
     e.preventDefault()
     setErr('')
+    setSuccess('')
 
     try {
       let path = ''
       let body: any = {}
 
       if (open === 'loan') {
-        path = '/operations/loans/applications'
+        path =
+          '/operations/loans/applications'
 
         body = {
           member_id: form.member_id,
           amount: Number(form.amount),
-          term_months: Number(form.term_months),
+          term_months: Number(
+            form.term_months,
+          ),
           purpose: form.purpose,
         }
       }
 
       if (open === 'withdrawal') {
-        path = '/operations/savings/withdrawals'
+        path =
+          '/operations/savings/withdrawals'
 
         body = {
           member_id: form.member_id,
@@ -156,7 +166,8 @@ export default function Operations() {
       }
 
       if (open === 'welfare') {
-        path = '/operations/welfare/claims'
+        path =
+          '/operations/welfare/claims'
 
         body = {
           member_id: form.member_id,
@@ -173,7 +184,8 @@ export default function Operations() {
 
       setSuccess('Request submitted.')
       setOpen(null)
-      load()
+
+      await load()
     } catch (e: any) {
       setErr(e.message)
     }
@@ -184,6 +196,9 @@ export default function Operations() {
     id: string,
     decisionValue: string,
   ) {
+    setErr('')
+    setSuccess('')
+
     try {
       await api(`${path}/${id}/decision`, {
         method: 'POST',
@@ -194,7 +209,8 @@ export default function Operations() {
       })
 
       setSuccess('Decision recorded.')
-      load()
+
+      await load()
     } catch (e: any) {
       setErr(e.message)
     }
@@ -226,28 +242,47 @@ export default function Operations() {
         />
 
         {err && <ErrorBox message={err} />}
-        {success && <SuccessBox message={success} />}
+
+        {success && (
+          <SuccessBox message={success} />
+        )}
 
         <div className="tabs">
           <button
-            className={tab === 'loans' ? 'selected' : ''}
-            onClick={() => setTab('loans')}
+            className={
+              tab === 'loans'
+                ? 'selected'
+                : ''
+            }
+            onClick={() =>
+              setTab('loans')
+            }
           >
             Loans
           </button>
 
           <button
             className={
-              tab === 'withdrawals' ? 'selected' : ''
+              tab === 'withdrawals'
+                ? 'selected'
+                : ''
             }
-            onClick={() => setTab('withdrawals')}
+            onClick={() =>
+              setTab('withdrawals')
+            }
           >
             Withdrawals
           </button>
 
           <button
-            className={tab === 'welfare' ? 'selected' : ''}
-            onClick={() => setTab('welfare')}
+            className={
+              tab === 'welfare'
+                ? 'selected'
+                : ''
+            }
+            onClick={() =>
+              setTab('welfare')
+            }
           >
             Welfare
           </button>
@@ -265,7 +300,9 @@ export default function Operations() {
                 'Action',
               ]}
               rows={data.map((x) => [
-                memberDisplay(x.member_id),
+                memberDisplay(
+                  x.member_id,
+                ),
 
                 x.amount,
 
@@ -276,12 +313,17 @@ export default function Operations() {
                 <span
                   className={
                     'badge ' +
-                    (x.status === 'approved' ||
-                    x.status === 'disbursed'
-                      ? 'green'
-                      : x.status === 'rejected'
-                        ? 'red'
-                        : 'amber')
+                    (
+                      x.status ===
+                        'approved' ||
+                      x.status ===
+                        'disbursed'
+                        ? 'green'
+                        : x.status ===
+                            'rejected'
+                          ? 'red'
+                          : 'amber'
+                    )
                   }
                 >
                   {x.status}
@@ -331,7 +373,9 @@ export default function Operations() {
                 'Action',
               ]}
               rows={data.map((x) => [
-                memberDisplay(x.member_id),
+                memberDisplay(
+                  x.member_id,
+                ),
 
                 x.amount,
 
@@ -340,11 +384,15 @@ export default function Operations() {
                 <span
                   className={
                     'badge ' +
-                    (x.status === 'approved'
-                      ? 'green'
-                      : x.status === 'rejected'
-                        ? 'red'
-                        : 'amber')
+                    (
+                      x.status ===
+                        'approved'
+                        ? 'green'
+                        : x.status ===
+                            'rejected'
+                          ? 'red'
+                          : 'amber'
+                    )
                   }
                 >
                   {x.status}
@@ -395,7 +443,9 @@ export default function Operations() {
                 'Action',
               ]}
               rows={data.map((x) => [
-                memberDisplay(x.member_id),
+                memberDisplay(
+                  x.member_id,
+                ),
 
                 x.category,
 
@@ -406,11 +456,15 @@ export default function Operations() {
                 <span
                   className={
                     'badge ' +
-                    (x.status === 'approved'
-                      ? 'green'
-                      : x.status === 'rejected'
-                        ? 'red'
-                        : 'amber')
+                    (
+                      x.status ===
+                        'approved'
+                        ? 'green'
+                        : x.status ===
+                            'rejected'
+                          ? 'red'
+                          : 'amber'
+                    )
                   }
                 >
                   {x.status}
@@ -451,7 +505,9 @@ export default function Operations() {
           )}
 
           {!data.length && (
-            <Empty text="No operational records found." />
+            <Empty
+              text="No operational records found."
+            />
           )}
         </Card>
       </div>
@@ -465,7 +521,9 @@ export default function Operations() {
                 ? 'Savings withdrawal'
                 : 'Welfare claim'
           }
-          onClose={() => setOpen(null)}
+          onClose={() =>
+            setOpen(null)
+          }
         >
           <form onSubmit={create}>
             {role !== 'member' && (
@@ -475,7 +533,8 @@ export default function Operations() {
                 onChange={(e) =>
                   setForm({
                     ...form,
-                    member_id: e.target.value,
+                    member_id:
+                      e.target.value,
                   })
                 }
                 required
@@ -489,7 +548,8 @@ export default function Operations() {
                     key={m.id}
                     value={m.id}
                   >
-                    {m.member_no} — {m.full_name}
+                    {m.member_no} —{' '}
+                    {m.full_name}
                   </option>
                 ))}
               </Select>
@@ -503,7 +563,8 @@ export default function Operations() {
               onChange={(e) =>
                 setForm({
                   ...form,
-                  amount: e.target.value,
+                  amount:
+                    e.target.value,
                 })
               }
               required
@@ -516,22 +577,28 @@ export default function Operations() {
                   type="number"
                   min="1"
                   max="120"
-                  value={form.term_months}
+                  value={
+                    form.term_months
+                  }
                   onChange={(e) =>
                     setForm({
                       ...form,
-                      term_months: e.target.value,
+                      term_months:
+                        e.target.value,
                     })
                   }
                 />
 
                 <Textarea
                   label="Purpose"
-                  value={form.purpose}
+                  value={
+                    form.purpose
+                  }
                   onChange={(e) =>
                     setForm({
                       ...form,
-                      purpose: e.target.value,
+                      purpose:
+                        e.target.value,
                     })
                   }
                   required
@@ -554,7 +621,8 @@ export default function Operations() {
                     setForm({
                       ...form,
                       [
-                        open === 'welfare'
+                        open ===
+                        'welfare'
                           ? 'category'
                           : 'reason'
                       ]: e.target.value,
@@ -565,11 +633,14 @@ export default function Operations() {
                 {open === 'welfare' && (
                   <Textarea
                     label="Reason"
-                    value={form.reason}
+                    value={
+                      form.reason
+                    }
                     onChange={(e) =>
                       setForm({
                         ...form,
-                        reason: e.target.value,
+                        reason:
+                          e.target.value,
                       })
                     }
                     required
@@ -582,153 +653,20 @@ export default function Operations() {
               <Button
                 variant="ghost"
                 type="button"
-                onClick={() => setOpen(null)}
-              >
-                Cancel
-              </Button>
-
-              <Button>Submit</Button>
-            </div>
-          </form>
-        </Modal>
-      )}
-    </AppShell>
-  )
-                          }& (
-            <Empty text="No operational records found." />
-          )}
-        </Card>
-      </div>
-
-      {open && (
-        <Modal
-          title={
-            open === 'loan'
-              ? 'New loan application'
-              : open === 'withdrawal'
-                ? 'Savings withdrawal'
-                : 'Welfare claim'
-          }
-          onClose={() => setOpen(null)}
-        >
-          <form onSubmit={create}>
-            {role !== 'member' && (
-              <Select
-                label="Member"
-                value={form.member_id}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    member_id: e.target.value,
-                  })
+                onClick={() =>
+                  setOpen(null)
                 }
-                required
-              >
-                <option value="">Select member</option>
-
-                {members.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.member_no} — {m.full_name}
-                  </option>
-                ))}
-              </Select>
-            )}
-
-            <Field
-              label="Amount"
-              type="number"
-              step="0.01"
-              value={form.amount}
-              onChange={(e) =>
-                setForm({
-                  ...form,
-                  amount: e.target.value,
-                })
-              }
-              required
-            />
-
-            {open === 'loan' ? (
-              <>
-                <Field
-                  label="Term (months)"
-                  type="number"
-                  min="1"
-                  max="120"
-                  value={form.term_months}
-                  onChange={(e) =>
-                    setForm({
-                      ...form,
-                      term_months: e.target.value,
-                    })
-                  }
-                />
-
-                <Textarea
-                  label="Purpose"
-                  value={form.purpose}
-                  onChange={(e) =>
-                    setForm({
-                      ...form,
-                      purpose: e.target.value,
-                    })
-                  }
-                  required
-                />
-              </>
-            ) : (
-              <>
-                <Field
-                  label={
-                    open === 'welfare'
-                      ? 'Category'
-                      : 'Reason'
-                  }
-                  value={
-                    open === 'welfare'
-                      ? form.category
-                      : form.reason
-                  }
-                  onChange={(e) =>
-                    setForm({
-                      ...form,
-                      [open === 'welfare'
-                        ? 'category'
-                        : 'reason']: e.target.value,
-                    })
-                  }
-                />
-
-                {open === 'welfare' && (
-                  <Textarea
-                    label="Reason"
-                    value={form.reason}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        reason: e.target.value,
-                      })
-                    }
-                    required
-                  />
-                )}
-              </>
-            )}
-
-            <div className="form-actions">
-              <Button
-                variant="ghost"
-                type="button"
-                onClick={() => setOpen(null)}
               >
                 Cancel
               </Button>
 
-              <Button>Submit</Button>
+              <Button>
+                Submit
+              </Button>
             </div>
           </form>
         </Modal>
       )}
     </AppShell>
   )
-}
+            }
