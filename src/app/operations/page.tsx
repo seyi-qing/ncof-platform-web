@@ -1,3 +1,534 @@
 'use client'
-import {useEffect,useState} from 'react';import AppShell from '@/components/AppShell';import {api} from '@/lib/api';import {getRole} from '@/lib/auth';import {Card,PageHeader,Table,Button,Modal,Field,Select,Textarea,ErrorBox,SuccessBox,Empty} from '@/components/UI';
-export default function Operations(){const role=getRole();const[tab,setTab]=useState<'loans'|'withdrawals'|'welfare'|'statement'>('loans');const[data,setData]=useState<any[]>([]);const[members,setMembers]=useState<any[]>([]);const[open,setOpen]=useState<string|null>(null);const[err,setErr]=useState('');const[success,setSuccess]=useState('');const[form,setForm]=useState<any>({member_id:'',amount:'',term_months:'12',purpose:'',category:'',reason:'',note:''});const load=async()=>{try{const path=tab==='loans'?'/operations/loans/applications':tab==='withdrawals'?'/operations/savings/withdrawals':'/operations/welfare/claims';setData(await api<any[]>(path));if(role!=='member')setMembers(await api<any[]>('/members'))}catch(e:any){setErr(e.message)}};useEffect(()=>{void load()},[tab]);async function create(e:any){e.preventDefault();try{let path='',body:any={};if(open==='loan'){path='/operations/loans/applications';body={member_id:form.member_id,amount:Number(form.amount),term_months:Number(form.term_months),purpose:form.purpose}}if(open==='withdrawal'){path='/operations/savings/withdrawals';body={member_id:form.member_id,amount:Number(form.amount),reason:form.reason||null}}if(open==='welfare'){path='/operations/welfare/claims';body={member_id:form.member_id,amount:Number(form.amount),category:form.category,reason:form.reason}}await api(path,{method:'POST',body:JSON.stringify(body)});setSuccess('Request submitted.');setOpen(null);load()}catch(e:any){setErr(e.message)}}async function decision(path:string,id:string,decision:string){try{await api(`${path}/${id}/decision`,{method:'POST',body:JSON.stringify({decision,note:form.note||null})});setSuccess('Decision recorded.');load()}catch(e:any){setErr(e.message)}}return <AppShell title="Operations"><div className="content"><PageHeader title="Operations" description="Savings withdrawals, loans and welfare workflows." action={role==='member'?<Button onClick={()=>setOpen(tab==='loans'?'loan':tab==='withdrawals'?'withdrawal':'welfare')}>New request</Button>:undefined}/>{err&&<ErrorBox message={err}/>} {success&&<SuccessBox message={success}/>}<div className="tabs"><button className={tab==='loans'?'selected':''} onClick={()=>setTab('loans')}>Loans</button><button className={tab==='withdrawals'?'selected':''} onClick={()=>setTab('withdrawals')}>Withdrawals</button><button className={tab==='welfare'?'selected':''} onClick={()=>setTab('welfare')}>Welfare</button></div><Card>{tab==='loans'&&<Table headers={['Member','Amount','Term','Purpose','Status','Action']} rows={data.map(x=>[x.member_id,x.amount,x.term_months,x.purpose,<span className={'badge '+(x.status==='approved'||x.status==='disbursed'?'green':x.status==='rejected'?'red':'amber')}>{x.status}</span>,role!=='member'&&x.status==='pending'?<div className="pill-row"><Button variant="secondary" onClick={()=>decision('/operations/loans/applications',x.id,'approved')}>Approve</Button><Button variant="danger" onClick={()=>decision('/operations/loans/applications',x.id,'rejected')}>Reject</Button></div>:null])}/>}{tab==='withdrawals'&&<Table headers={['Member','Amount','Reason','Status','Action']} rows={data.map(x=>[x.member_id,x.amount,x.reason||'\u2014',<span className={'badge '+(x.status==='approved'?'green':x.status==='rejected'?'red':'amber')}>{x.status}</span>,role!=='member'&&x.status==='pending'?<div className="pill-row"><Button variant="secondary" onClick={()=>decision('/operations/savings/withdrawals',x.id,'approved')}>Approve</Button><Button variant="danger" onClick={()=>decision('/operations/savings/withdrawals',x.id,'rejected')}>Reject</Button></div>:null])}/>}{tab==='welfare'&&<Table headers={['Member','Category','Amount','Reason','Status','Action']} rows={data.map(x=>[x.member_id,x.category,x.amount,x.reason,<span className={'badge '+(x.status==='approved'?'green':x.status==='rejected'?'red':'amber')}>{x.status}</span>,role!=='member'&&x.status==='pending'?<div className="pill-row"><Button variant="secondary" onClick={()=>decision('/operations/welfare/claims',x.id,'approved')}>Approve</Button><Button variant="danger" onClick={()=>decision('/operations/welfare/claims',x.id,'rejected')}>Reject</Button></div>:null])}/>}{!data.length&&<Empty text="No operational records found."/>}</Card></div>{open&&<Modal title={open==='loan'?'New loan application':open==='withdrawal'?'Savings withdrawal':'Welfare claim'} onClose={()=>setOpen(null)}><form onSubmit={create}>{role!=='member'&&<Select label="Member" value={form.member_id} onChange={e=>setForm({...form,member_id:e.target.value})} required><option value="">Select member</option>{members.map(m=><option key={m.id} value={m.id}>{m.member_no} \u2014 {m.full_name}</option>)}</Select>}<Field label="Amount" type="number" step="0.01" value={form.amount} onChange={e=>setForm({...form,amount:e.target.value})} required/>{open==='loan'?<><Field label="Term (months)" type="number" min="1" max="120" value={form.term_months} onChange={e=>setForm({...form,term_months:e.target.value})}/><Textarea label="Purpose" value={form.purpose} onChange={e=>setForm({...form,purpose:e.target.value})} required/></>:<><Field label={open==='welfare'?'Category':'Reason'} value={open==='welfare'?form.category:form.reason} onChange={e=>setForm({...form,[open==='welfare'?'category':'reason']:e.target.value})}/>{open==='welfare'&&<Textarea label="Reason" value={form.reason} onChange={e=>setForm({...form,reason:e.target.value})} required/>}</>}<div className="form-actions"><Button variant="ghost" type="button" onClick={()=>setOpen(null)}>Cancel</Button><Button>Submit</Button></div></form></Modal>}</AppShell>}
+
+import { useEffect, useState } from 'react'
+import AppShell from '@/components/AppShell'
+import { api } from '@/lib/api'
+import { getRole } from '@/lib/auth'
+import {
+  Card,
+  PageHeader,
+  Table,
+  Button,
+  Modal,
+  Field,
+  Select,
+  Textarea,
+  ErrorBox,
+  SuccessBox,
+  Empty,
+} from '@/components/UI'
+
+const REQUEST_ROLES = new Set(['admin', 'executive', 'treasurer'])
+
+export default function Operations() {
+  const role = getRole()
+  const canCreate = role === 'member' || REQUEST_ROLES.has(role)
+
+  const [tab, setTab] = useState<
+    'loans' | 'withdrawals' | 'welfare' | 'statement'
+  >('loans')
+
+  const [data, setData] = useState<any[]>([])
+  const [members, setMembers] = useState<any[]>([])
+  const [open, setOpen] = useState<string | null>(null)
+  const [err, setErr] = useState('')
+  const [success, setSuccess] = useState('')
+
+  const [form, setForm] = useState<any>({
+    member_id: '',
+    amount: '',
+    term_months: '12',
+    purpose: '',
+    category: '',
+    reason: '',
+    note: '',
+  })
+
+  const load = async () => {
+    setErr('')
+
+    try {
+      const path =
+        tab === 'loans'
+          ? '/operations/loans/applications'
+          : tab === 'withdrawals'
+            ? '/operations/savings/withdrawals'
+            : '/operations/welfare/claims'
+
+      setData(await api<any[]>(path))
+
+      if (role !== 'member') {
+        setMembers(await api<any[]>('/members'))
+      }
+    } catch (e: any) {
+      setErr(e.message)
+    }
+  }
+
+  useEffect(() => {
+    void load()
+  }, [tab])
+
+  function openRequest(kind: string) {
+    setErr('')
+    setOpen(kind)
+
+    setForm({
+      member_id: '',
+      amount: '',
+      term_months: '12',
+      purpose: '',
+      category: '',
+      reason: '',
+      note: '',
+    })
+  }
+
+  async function create(e: any) {
+    e.preventDefault()
+    setErr('')
+
+    try {
+      let path = ''
+      let body: any = {}
+
+      if (open === 'loan') {
+        path = '/operations/loans/applications'
+
+        body = {
+          member_id: form.member_id,
+          amount: Number(form.amount),
+          term_months: Number(form.term_months),
+          purpose: form.purpose,
+        }
+      }
+
+      if (open === 'withdrawal') {
+        path = '/operations/savings/withdrawals'
+
+        body = {
+          member_id: form.member_id,
+          amount: Number(form.amount),
+          reason: form.reason || null,
+        }
+      }
+
+      if (open === 'welfare') {
+        path = '/operations/welfare/claims'
+
+        body = {
+          member_id: form.member_id,
+          amount: Number(form.amount),
+          category: form.category,
+          reason: form.reason,
+        }
+      }
+
+      await api(path, {
+        method: 'POST',
+        body: JSON.stringify(body),
+      })
+
+      setSuccess('Request submitted.')
+      setOpen(null)
+      load()
+    } catch (e: any) {
+      setErr(e.message)
+    }
+  }
+
+  async function decision(
+    path: string,
+    id: string,
+    decisionValue: string,
+  ) {
+    try {
+      await api(`${path}/${id}/decision`, {
+        method: 'POST',
+        body: JSON.stringify({
+          decision: decisionValue,
+          note: form.note || null,
+        }),
+      })
+
+      setSuccess('Decision recorded.')
+      load()
+    } catch (e: any) {
+      setErr(e.message)
+    }
+  }
+
+  return (
+    <AppShell title="Operations">
+      <div className="content">
+        <PageHeader
+          title="Operations"
+          description="Savings withdrawals, loans and welfare workflows."
+          action={
+            canCreate ? (
+              <Button
+                onClick={() =>
+                  openRequest(
+                    tab === 'loans'
+                      ? 'loan'
+                      : tab === 'withdrawals'
+                        ? 'withdrawal'
+                        : 'welfare',
+                  )
+                }
+              >
+                New request
+              </Button>
+            ) : undefined
+          }
+        />
+
+        {err && <ErrorBox message={err} />}
+        {success && <SuccessBox message={success} />}
+
+        <div className="tabs">
+          <button
+            className={tab === 'loans' ? 'selected' : ''}
+            onClick={() => setTab('loans')}
+          >
+            Loans
+          </button>
+
+          <button
+            className={tab === 'withdrawals' ? 'selected' : ''}
+            onClick={() => setTab('withdrawals')}
+          >
+            Withdrawals
+          </button>
+
+          <button
+            className={tab === 'welfare' ? 'selected' : ''}
+            onClick={() => setTab('welfare')}
+          >
+            Welfare
+          </button>
+        </div>
+
+        <Card>
+          {tab === 'loans' && (
+            <Table
+              headers={[
+                'Member',
+                'Amount',
+                'Term',
+                'Purpose',
+                'Status',
+                'Action',
+              ]}
+              rows={data.map((x) => [
+                x.member_id,
+                x.amount,
+                x.term_months,
+                x.purpose,
+
+                <span
+                  className={
+                    'badge ' +
+                    (x.status === 'approved' || x.status === 'disbursed'
+                      ? 'green'
+                      : x.status === 'rejected'
+                        ? 'red'
+                        : 'amber')
+                  }
+                >
+                  {x.status}
+                </span>,
+
+                role !== 'member' && x.status === 'pending' ? (
+                  <div className="pill-row">
+                    <Button
+                      variant="secondary"
+                      onClick={() =>
+                        decision(
+                          '/operations/loans/applications',
+                          x.id,
+                          'approved',
+                        )
+                      }
+                    >
+                      Approve
+                    </Button>
+
+                    <Button
+                      variant="danger"
+                      onClick={() =>
+                        decision(
+                          '/operations/loans/applications',
+                          x.id,
+                          'rejected',
+                        )
+                      }
+                    >
+                      Reject
+                    </Button>
+                  </div>
+                ) : null,
+              ])}
+            />
+          )}
+
+          {tab === 'withdrawals' && (
+            <Table
+              headers={[
+                'Member',
+                'Amount',
+                'Reason',
+                'Status',
+                'Action',
+              ]}
+              rows={data.map((x) => [
+                x.member_id,
+                x.amount,
+                x.reason || '—',
+
+                <span
+                  className={
+                    'badge ' +
+                    (x.status === 'approved'
+                      ? 'green'
+                      : x.status === 'rejected'
+                        ? 'red'
+                        : 'amber')
+                  }
+                >
+                  {x.status}
+                </span>,
+
+                role !== 'member' && x.status === 'pending' ? (
+                  <div className="pill-row">
+                    <Button
+                      variant="secondary"
+                      onClick={() =>
+                        decision(
+                          '/operations/savings/withdrawals',
+                          x.id,
+                          'approved',
+                        )
+                      }
+                    >
+                      Approve
+                    </Button>
+
+                    <Button
+                      variant="danger"
+                      onClick={() =>
+                        decision(
+                          '/operations/savings/withdrawals',
+                          x.id,
+                          'rejected',
+                        )
+                      }
+                    >
+                      Reject
+                    </Button>
+                  </div>
+                ) : null,
+              ])}
+            />
+          )}
+
+          {tab === 'welfare' && (
+            <Table
+              headers={[
+                'Member',
+                'Category',
+                'Amount',
+                'Reason',
+                'Status',
+                'Action',
+              ]}
+              rows={data.map((x) => [
+                x.member_id,
+                x.category,
+                x.amount,
+                x.reason,
+
+                <span
+                  className={
+                    'badge ' +
+                    (x.status === 'approved'
+                      ? 'green'
+                      : x.status === 'rejected'
+                        ? 'red'
+                        : 'amber')
+                  }
+                >
+                  {x.status}
+                </span>,
+
+                role !== 'member' && x.status === 'pending' ? (
+                  <div className="pill-row">
+                    <Button
+                      variant="secondary"
+                      onClick={() =>
+                        decision(
+                          '/operations/welfare/claims',
+                          x.id,
+                          'approved',
+                        )
+                      }
+                    >
+                      Approve
+                    </Button>
+
+                    <Button
+                      variant="danger"
+                      onClick={() =>
+                        decision(
+                          '/operations/welfare/claims',
+                          x.id,
+                          'rejected',
+                        )
+                      }
+                    >
+                      Reject
+                    </Button>
+                  </div>
+                ) : null,
+              ])}
+            />
+          )}
+
+          {!data.length && (
+            <Empty text="No operational records found." />
+          )}
+        </Card>
+      </div>
+
+      {open && (
+        <Modal
+          title={
+            open === 'loan'
+              ? 'New loan application'
+              : open === 'withdrawal'
+                ? 'Savings withdrawal'
+                : 'Welfare claim'
+          }
+          onClose={() => setOpen(null)}
+        >
+          <form onSubmit={create}>
+            {role !== 'member' && (
+              <Select
+                label="Member"
+                value={form.member_id}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    member_id: e.target.value,
+                  })
+                }
+                required
+              >
+                <option value="">Select member</option>
+
+                {members.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.member_no} — {m.full_name}
+                  </option>
+                ))}
+              </Select>
+            )}
+
+            <Field
+              label="Amount"
+              type="number"
+              step="0.01"
+              value={form.amount}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  amount: e.target.value,
+                })
+              }
+              required
+            />
+
+            {open === 'loan' ? (
+              <>
+                <Field
+                  label="Term (months)"
+                  type="number"
+                  min="1"
+                  max="120"
+                  value={form.term_months}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      term_months: e.target.value,
+                    })
+                  }
+                />
+
+                <Textarea
+                  label="Purpose"
+                  value={form.purpose}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      purpose: e.target.value,
+                    })
+                  }
+                  required
+                />
+              </>
+            ) : (
+              <>
+                <Field
+                  label={
+                    open === 'welfare'
+                      ? 'Category'
+                      : 'Reason'
+                  }
+                  value={
+                    open === 'welfare'
+                      ? form.category
+                      : form.reason
+                  }
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      [open === 'welfare'
+                        ? 'category'
+                        : 'reason']: e.target.value,
+                    })
+                  }
+                />
+
+                {open === 'welfare' && (
+                  <Textarea
+                    label="Reason"
+                    value={form.reason}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        reason: e.target.value,
+                      })
+                    }
+                    required
+                  />
+                )}
+              </>
+            )}
+
+            <div className="form-actions">
+              <Button
+                variant="ghost"
+                type="button"
+                onClick={() => setOpen(null)}
+              >
+                Cancel
+              </Button>
+
+              <Button>Submit</Button>
+            </div>
+          </form>
+        </Modal>
+      )}
+    </AppShell>
+  )
+}
