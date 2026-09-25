@@ -18,11 +18,16 @@ import {
   Empty,
 } from '@/components/UI'
 
-const REQUEST_ROLES = new Set(['admin', 'executive', 'treasurer'])
+const REQUEST_ROLES = new Set([
+  'admin',
+  'executive',
+  'treasurer',
+])
 
 export default function Operations() {
   const role = getRole()
-  const canCreate = role === 'member' || REQUEST_ROLES.has(role)
+  const canCreate =
+    role === 'member' || REQUEST_ROLES.has(role)
 
   const [tab, setTab] = useState<
     'loans' | 'withdrawals' | 'welfare' | 'statement'
@@ -68,6 +73,43 @@ export default function Operations() {
   useEffect(() => {
     void load()
   }, [tab])
+
+  /*
+   * Convert database member UUIDs into human-readable
+   * member numbers and names.
+   */
+  const memberMap = new Map(
+    members.map((member) => [
+      member.id,
+      member,
+    ]),
+  )
+
+  function memberDisplay(memberId: string) {
+    const member = memberMap.get(memberId)
+
+    if (!member) {
+      return (
+        <span>
+          <b>{memberId}</b>
+        </span>
+      )
+    }
+
+    return (
+      <span>
+        <b>{member.member_no}</b>
+        <small
+          style={{
+            display: 'block',
+            opacity: 0.7,
+          }}
+        >
+          {member.full_name}
+        </small>
+      </span>
+    )
+  }
 
   function openRequest(kind: string) {
     setErr('')
@@ -195,7 +237,9 @@ export default function Operations() {
           </button>
 
           <button
-            className={tab === 'withdrawals' ? 'selected' : ''}
+            className={
+              tab === 'withdrawals' ? 'selected' : ''
+            }
             onClick={() => setTab('withdrawals')}
           >
             Withdrawals
@@ -221,15 +265,19 @@ export default function Operations() {
                 'Action',
               ]}
               rows={data.map((x) => [
-                x.member_id,
+                memberDisplay(x.member_id),
+
                 x.amount,
+
                 x.term_months,
+
                 x.purpose,
 
                 <span
                   className={
                     'badge ' +
-                    (x.status === 'approved' || x.status === 'disbursed'
+                    (x.status === 'approved' ||
+                    x.status === 'disbursed'
                       ? 'green'
                       : x.status === 'rejected'
                         ? 'red'
@@ -239,7 +287,8 @@ export default function Operations() {
                   {x.status}
                 </span>,
 
-                role !== 'member' && x.status === 'pending' ? (
+                role !== 'member' &&
+                x.status === 'pending' ? (
                   <div className="pill-row">
                     <Button
                       variant="secondary"
@@ -282,8 +331,10 @@ export default function Operations() {
                 'Action',
               ]}
               rows={data.map((x) => [
-                x.member_id,
+                memberDisplay(x.member_id),
+
                 x.amount,
+
                 x.reason || '—',
 
                 <span
@@ -299,7 +350,8 @@ export default function Operations() {
                   {x.status}
                 </span>,
 
-                role !== 'member' && x.status === 'pending' ? (
+                role !== 'member' &&
+                x.status === 'pending' ? (
                   <div className="pill-row">
                     <Button
                       variant="secondary"
@@ -343,9 +395,12 @@ export default function Operations() {
                 'Action',
               ]}
               rows={data.map((x) => [
-                x.member_id,
+                memberDisplay(x.member_id),
+
                 x.category,
+
                 x.amount,
+
                 x.reason,
 
                 <span
@@ -361,7 +416,8 @@ export default function Operations() {
                   {x.status}
                 </span>,
 
-                role !== 'member' && x.status === 'pending' ? (
+                role !== 'member' &&
+                x.status === 'pending' ? (
                   <div className="pill-row">
                     <Button
                       variant="secondary"
@@ -395,6 +451,150 @@ export default function Operations() {
           )}
 
           {!data.length && (
+            <Empty text="No operational records found." />
+          )}
+        </Card>
+      </div>
+
+      {open && (
+        <Modal
+          title={
+            open === 'loan'
+              ? 'New loan application'
+              : open === 'withdrawal'
+                ? 'Savings withdrawal'
+                : 'Welfare claim'
+          }
+          onClose={() => setOpen(null)}
+        >
+          <form onSubmit={create}>
+            {role !== 'member' && (
+              <Select
+                label="Member"
+                value={form.member_id}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    member_id: e.target.value,
+                  })
+                }
+                required
+              >
+                <option value="">
+                  Select member
+                </option>
+
+                {members.map((m) => (
+                  <option
+                    key={m.id}
+                    value={m.id}
+                  >
+                    {m.member_no} — {m.full_name}
+                  </option>
+                ))}
+              </Select>
+            )}
+
+            <Field
+              label="Amount"
+              type="number"
+              step="0.01"
+              value={form.amount}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  amount: e.target.value,
+                })
+              }
+              required
+            />
+
+            {open === 'loan' ? (
+              <>
+                <Field
+                  label="Term (months)"
+                  type="number"
+                  min="1"
+                  max="120"
+                  value={form.term_months}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      term_months: e.target.value,
+                    })
+                  }
+                />
+
+                <Textarea
+                  label="Purpose"
+                  value={form.purpose}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      purpose: e.target.value,
+                    })
+                  }
+                  required
+                />
+              </>
+            ) : (
+              <>
+                <Field
+                  label={
+                    open === 'welfare'
+                      ? 'Category'
+                      : 'Reason'
+                  }
+                  value={
+                    open === 'welfare'
+                      ? form.category
+                      : form.reason
+                  }
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      [
+                        open === 'welfare'
+                          ? 'category'
+                          : 'reason'
+                      ]: e.target.value,
+                    })
+                  }
+                />
+
+                {open === 'welfare' && (
+                  <Textarea
+                    label="Reason"
+                    value={form.reason}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        reason: e.target.value,
+                      })
+                    }
+                    required
+                  />
+                )}
+              </>
+            )}
+
+            <div className="form-actions">
+              <Button
+                variant="ghost"
+                type="button"
+                onClick={() => setOpen(null)}
+              >
+                Cancel
+              </Button>
+
+              <Button>Submit</Button>
+            </div>
+          </form>
+        </Modal>
+      )}
+    </AppShell>
+  )
+                          }& (
             <Empty text="No operational records found." />
           )}
         </Card>
