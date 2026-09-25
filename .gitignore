@@ -3,5 +3,5 @@ node_modules
 out
 .env
 .env.local
-.DS_Store
-*.log
+.vercel
+npm-debug.log*
