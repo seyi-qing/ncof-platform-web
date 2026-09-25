@@ -6,7 +6,7 @@ export function Button({children,loading=false,variant='primary',...p}:any){retu
 export function ErrorBox({message}:{message:string}){return <div className="alert error"><AlertCircle size={17}/>{message}</div>}
 export function SuccessBox({message}:{message:string}){return <div className="alert success"><CheckCircle2 size={17}/>{message}</div>}
 export function PageHeader({title,description,action}:{title:string;description?:string;action?:React.ReactNode}){return <div className="page-header"><div><h2>{title}</h2>{description&&<p>{description}</p>}</div>{action}</div>}
-export function Empty({text='No records found.'}){return <div className="empty">{text}</div>}
+export function Empty({text='No records found.'}:{text?:string}){return <div className="empty">{text}</div>}
 export function Refresh({onClick}:{onClick:()=>void}){return <button className="iconbtn" onClick={onClick} title="Refresh"><RefreshCw size={16}/></button>}
 export function Modal({title,onClose,children}:{title:string;onClose:()=>void;children:React.ReactNode}){return <div className="modal-backdrop" onMouseDown={onClose}><div className="modal" onMouseDown={e=>e.stopPropagation()}><div className="modal-head"><h3>{title}</h3><button className="iconbtn" onClick={onClose}>×</button></div>{children}</div></div>}
 export function Field({label,...p}:any){return <label className="field"><span>{label}</span><input {...p}/></label>}
