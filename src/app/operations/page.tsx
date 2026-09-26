@@ -37,6 +37,7 @@ export default function Operations() {
   const [members, setMembers] = useState<any[]>([])
   const [open, setOpen] = useState<string | null>(null)
   const [err, setErr] = useState('')
+  const [viewItem, setViewItem] = useState<any>(null)
   const [success, setSuccess] = useState('')
 
   const [form, setForm] = useState<any>({
@@ -51,7 +52,6 @@ export default function Operations() {
 
   const load = async () => {
     setErr('')
-
     try {
       const path =
         tab === 'loans'
@@ -59,15 +59,10 @@ export default function Operations() {
           : tab === 'withdrawals'
             ? '/operations/savings/withdrawals'
             : '/operations/welfare/claims'
-
       const records = await api<any[]>(path)
       setData(records)
-
       if (role !== 'member') {
-        const memberData =
-          await api<any[]>('/members')
-
-        setMembers(memberData)
+        setMembers(await api<any[]>('/members'))
       }
     } catch (e: any) {
       setErr(e.message)
@@ -78,20 +73,12 @@ export default function Operations() {
     void load()
   }, [tab])
 
-  /*
-   * Map database UUIDs to human-readable
-   * NCOF member numbers and names.
-   */
   const memberMap = new Map(
-    members.map((member) => [
-      member.id,
-      member,
-    ]),
+    members.map((member) => [member.id, member]),
   )
 
   function memberDisplay(memberId: string) {
     const member = memberMap.get(memberId)
-
     if (!member) {
       return (
         <span>
@@ -99,16 +86,10 @@ export default function Operations() {
         </span>
       )
     }
-
     return (
       <span>
         <b>{member.member_no}</b>
-        <small
-          style={{
-            display: 'block',
-            opacity: 0.7,
-          }}
-        >
+        <small style={{ display: 'block', opacity: 0.7 }}>
           {member.full_name}
         </small>
       </span>
@@ -119,7 +100,6 @@ export default function Operations() {
     setErr('')
     setSuccess('')
     setOpen(kind)
-
     setForm({
       member_id: '',
       amount: '',
@@ -135,40 +115,28 @@ export default function Operations() {
     e.preventDefault()
     setErr('')
     setSuccess('')
-
     try {
       let path = ''
       let body: any = {}
-
       if (open === 'loan') {
-        path =
-          '/operations/loans/applications'
-
+        path = '/operations/loans/applications'
         body = {
           member_id: form.member_id,
           amount: Number(form.amount),
-          term_months: Number(
-            form.term_months,
-          ),
+          term_months: Number(form.term_months),
           purpose: form.purpose,
         }
       }
-
       if (open === 'withdrawal') {
-        path =
-          '/operations/savings/withdrawals'
-
+        path = '/operations/savings/withdrawals'
         body = {
           member_id: form.member_id,
           amount: Number(form.amount),
           reason: form.reason || null,
         }
       }
-
       if (open === 'welfare') {
-        path =
-          '/operations/welfare/claims'
-
+        path = '/operations/welfare/claims'
         body = {
           member_id: form.member_id,
           amount: Number(form.amount),
@@ -176,15 +144,12 @@ export default function Operations() {
           reason: form.reason,
         }
       }
-
       await api(path, {
         method: 'POST',
         body: JSON.stringify(body),
       })
-
       setSuccess('Request submitted.')
       setOpen(null)
-
       await load()
     } catch (e: any) {
       setErr(e.message)
@@ -198,7 +163,6 @@ export default function Operations() {
   ) {
     setErr('')
     setSuccess('')
-
     try {
       await api(`${path}/${id}/decision`, {
         method: 'POST',
@@ -207,13 +171,47 @@ export default function Operations() {
           note: form.note || null,
         }),
       })
-
       setSuccess('Decision recorded.')
-
       await load()
     } catch (e: any) {
       setErr(e.message)
     }
+  }
+
+  function actionCell(x: any) {
+    if (role === 'member') return null
+    if (x.status === 'pending') {
+      const base =
+        tab === 'loans'
+          ? '/operations/loans/applications'
+          : tab === 'withdrawals'
+            ? '/operations/savings/withdrawals'
+            : '/operations/welfare/claims'
+      return (
+        <div className="pill-row">
+          <Button
+            variant="secondary"
+            onClick={() => decision(base, x.id, 'approved')}
+          >
+            Approve
+          </Button>
+          <Button
+            variant="danger"
+            onClick={() => decision(base, x.id, 'rejected')}
+          >
+            Reject
+          </Button>
+        </div>
+      )
+    }
+    return (
+      <Button
+        variant="secondary"
+        onClick={() => setViewItem({ ...x, _kind: tab })}
+      >
+        View
+      </Button>
+    )
   }
 
   return (
@@ -242,47 +240,24 @@ export default function Operations() {
         />
 
         {err && <ErrorBox message={err} />}
-
-        {success && (
-          <SuccessBox message={success} />
-        )}
+        {success && <SuccessBox message={success} />}
 
         <div className="tabs">
           <button
-            className={
-              tab === 'loans'
-                ? 'selected'
-                : ''
-            }
-            onClick={() =>
-              setTab('loans')
-            }
+            className={tab === 'loans' ? 'selected' : ''}
+            onClick={() => setTab('loans')}
           >
             Loans
           </button>
-
           <button
-            className={
-              tab === 'withdrawals'
-                ? 'selected'
-                : ''
-            }
-            onClick={() =>
-              setTab('withdrawals')
-            }
+            className={tab === 'withdrawals' ? 'selected' : ''}
+            onClick={() => setTab('withdrawals')}
           >
             Withdrawals
           </button>
-
           <button
-            className={
-              tab === 'welfare'
-                ? 'selected'
-                : ''
-            }
-            onClick={() =>
-              setTab('welfare')
-            }
+            className={tab === 'welfare' ? 'selected' : ''}
+            onClick={() => setTab('welfare')}
           >
             Welfare
           </button>
@@ -291,223 +266,83 @@ export default function Operations() {
         <Card>
           {tab === 'loans' && (
             <Table
-              headers={[
-                'Member',
-                'Amount',
-                'Term',
-                'Purpose',
-                'Status',
-                'Action',
-              ]}
+              headers={['Member', 'Amount', 'Term', 'Purpose', 'Status', 'Action']}
               rows={data.map((x) => [
-                memberDisplay(
-                  x.member_id,
-                ),
-
+                memberDisplay(x.member_id),
                 x.amount,
-
                 x.term_months,
-
                 x.purpose,
-
                 <span
+                  key="s"
                   className={
                     'badge ' +
-                    (
-                      x.status ===
-                        'approved' ||
-                      x.status ===
-                        'disbursed'
-                        ? 'green'
-                        : x.status ===
-                            'rejected'
-                          ? 'red'
-                          : 'amber'
-                    )
+                    (x.status === 'approved' || x.status === 'disbursed'
+                      ? 'green'
+                      : x.status === 'rejected'
+                        ? 'red'
+                        : 'amber')
                   }
                 >
                   {x.status}
                 </span>,
-
-                role !== 'member' &&
-                x.status === 'pending' ? (
-                  <div className="pill-row">
-                    <Button
-                      variant="secondary"
-                      onClick={() =>
-                        decision(
-                          '/operations/loans/applications',
-                          x.id,
-                          'approved',
-                        )
-                      }
-                    >
-                      Approve
-                    </Button>
-
-                    <Button
-                      variant="danger"
-                      onClick={() =>
-                        decision(
-                          '/operations/loans/applications',
-                          x.id,
-                          'rejected',
-                        )
-                      }
-                    >
-                      Reject
-                    </Button>
-                  </div>
-                ) : null,
+                actionCell(x),
               ])}
             />
           )}
 
           {tab === 'withdrawals' && (
             <Table
-              headers={[
-                'Member',
-                'Amount',
-                'Reason',
-                'Status',
-                'Action',
-              ]}
+              headers={['Member', 'Amount', 'Reason', 'Status', 'Action']}
               rows={data.map((x) => [
-                memberDisplay(
-                  x.member_id,
-                ),
-
+                memberDisplay(x.member_id),
                 x.amount,
-
-                x.reason || '—',
-
+                x.reason || '\u2014',
                 <span
+                  key="s"
                   className={
                     'badge ' +
-                    (
-                      x.status ===
-                        'approved'
-                        ? 'green'
-                        : x.status ===
-                            'rejected'
-                          ? 'red'
-                          : 'amber'
-                    )
+                    (x.status === 'approved'
+                      ? 'green'
+                      : x.status === 'rejected'
+                        ? 'red'
+                        : 'amber')
                   }
                 >
                   {x.status}
                 </span>,
-
-                role !== 'member' &&
-                x.status === 'pending' ? (
-                  <div className="pill-row">
-                    <Button
-                      variant="secondary"
-                      onClick={() =>
-                        decision(
-                          '/operations/savings/withdrawals',
-                          x.id,
-                          'approved',
-                        )
-                      }
-                    >
-                      Approve
-                    </Button>
-
-                    <Button
-                      variant="danger"
-                      onClick={() =>
-                        decision(
-                          '/operations/savings/withdrawals',
-                          x.id,
-                          'rejected',
-                        )
-                      }
-                    >
-                      Reject
-                    </Button>
-                  </div>
-                ) : null,
+                actionCell(x),
               ])}
             />
           )}
 
           {tab === 'welfare' && (
             <Table
-              headers={[
-                'Member',
-                'Category',
-                'Amount',
-                'Reason',
-                'Status',
-                'Action',
-              ]}
+              headers={['Member', 'Category', 'Amount', 'Reason', 'Status', 'Action']}
               rows={data.map((x) => [
-                memberDisplay(
-                  x.member_id,
-                ),
-
+                memberDisplay(x.member_id),
                 x.category,
-
                 x.amount,
-
                 x.reason,
-
                 <span
+                  key="s"
                   className={
                     'badge ' +
-                    (
-                      x.status ===
-                        'approved'
-                        ? 'green'
-                        : x.status ===
-                            'rejected'
-                          ? 'red'
-                          : 'amber'
-                    )
+                    (x.status === 'approved'
+                      ? 'green'
+                      : x.status === 'rejected'
+                        ? 'red'
+                        : 'amber')
                   }
                 >
                   {x.status}
                 </span>,
-
-                role !== 'member' &&
-                x.status === 'pending' ? (
-                  <div className="pill-row">
-                    <Button
-                      variant="secondary"
-                      onClick={() =>
-                        decision(
-                          '/operations/welfare/claims',
-                          x.id,
-                          'approved',
-                        )
-                      }
-                    >
-                      Approve
-                    </Button>
-
-                    <Button
-                      variant="danger"
-                      onClick={() =>
-                        decision(
-                          '/operations/welfare/claims',
-                          x.id,
-                          'rejected',
-                        )
-                      }
-                    >
-                      Reject
-                    </Button>
-                  </div>
-                ) : null,
+                actionCell(x),
               ])}
             />
           )}
 
           {!data.length && (
-            <Empty
-              text="No operational records found."
-            />
+            <Empty text="No operational records found." />
           )}
         </Card>
       </div>
@@ -521,9 +356,7 @@ export default function Operations() {
                 ? 'Savings withdrawal'
                 : 'Welfare claim'
           }
-          onClose={() =>
-            setOpen(null)
-          }
+          onClose={() => setOpen(null)}
         >
           <form onSubmit={create}>
             {role !== 'member' && (
@@ -531,45 +364,26 @@ export default function Operations() {
                 label="Member"
                 value={form.member_id}
                 onChange={(e) =>
-                  setForm({
-                    ...form,
-                    member_id:
-                      e.target.value,
-                  })
+                  setForm({ ...form, member_id: e.target.value })
                 }
                 required
               >
-                <option value="">
-                  Select member
-                </option>
-
+                <option value="">Select member</option>
                 {members.map((m) => (
-                  <option
-                    key={m.id}
-                    value={m.id}
-                  >
-                    {m.member_no} —{' '}
-                    {m.full_name}
+                  <option key={m.id} value={m.id}>
+                    {m.member_no} \u2014 {m.full_name}
                   </option>
                 ))}
               </Select>
             )}
-
             <Field
               label="Amount"
               type="number"
               step="0.01"
               value={form.amount}
-              onChange={(e) =>
-                setForm({
-                  ...form,
-                  amount:
-                    e.target.value,
-                })
-              }
+              onChange={(e) => setForm({ ...form, amount: e.target.value })}
               required
             />
-
             {open === 'loan' ? (
               <>
                 <Field
@@ -577,29 +391,16 @@ export default function Operations() {
                   type="number"
                   min="1"
                   max="120"
-                  value={
-                    form.term_months
-                  }
+                  value={form.term_months}
                   onChange={(e) =>
-                    setForm({
-                      ...form,
-                      term_months:
-                        e.target.value,
-                    })
+                    setForm({ ...form, term_months: e.target.value })
                   }
                 />
-
                 <Textarea
                   label="Purpose"
-                  value={
-                    form.purpose
-                  }
+                  value={form.purpose}
                   onChange={(e) =>
-                    setForm({
-                      ...form,
-                      purpose:
-                        e.target.value,
-                    })
+                    setForm({ ...form, purpose: e.target.value })
                   }
                   required
                 />
@@ -607,66 +408,90 @@ export default function Operations() {
             ) : (
               <>
                 <Field
-                  label={
-                    open === 'welfare'
-                      ? 'Category'
-                      : 'Reason'
-                  }
-                  value={
-                    open === 'welfare'
-                      ? form.category
-                      : form.reason
-                  }
+                  label={open === 'welfare' ? 'Category' : 'Reason'}
+                  value={open === 'welfare' ? form.category : form.reason}
                   onChange={(e) =>
                     setForm({
                       ...form,
-                      [
-                        open ===
-                        'welfare'
-                          ? 'category'
-                          : 'reason'
-                      ]: e.target.value,
+                      [open === 'welfare' ? 'category' : 'reason']:
+                        e.target.value,
                     })
                   }
                 />
-
                 {open === 'welfare' && (
                   <Textarea
                     label="Reason"
-                    value={
-                      form.reason
-                    }
+                    value={form.reason}
                     onChange={(e) =>
-                      setForm({
-                        ...form,
-                        reason:
-                          e.target.value,
-                      })
+                      setForm({ ...form, reason: e.target.value })
                     }
                     required
                   />
                 )}
               </>
             )}
-
             <div className="form-actions">
               <Button
                 variant="ghost"
                 type="button"
-                onClick={() =>
-                  setOpen(null)
-                }
+                onClick={() => setOpen(null)}
               >
                 Cancel
               </Button>
-
-              <Button>
-                Submit
-              </Button>
+              <Button>Submit</Button>
             </div>
           </form>
         </Modal>
       )}
+
+      {viewItem && (
+        <Modal
+          title={`${viewItem._kind || 'Request'} \u2014 ${viewItem.status}`}
+          onClose={() => setViewItem(null)}
+        >
+          <div style={{ fontSize: 13, lineHeight: 1.6 }}>
+            <p>
+              <b>Member:</b> {memberDisplay(viewItem.member_id)}
+            </p>
+            <p>
+              <b>Amount:</b> {viewItem.amount}
+            </p>
+            {viewItem.purpose && (
+              <p>
+                <b>Purpose:</b> {viewItem.purpose}
+              </p>
+            )}
+            {viewItem.reason && (
+              <p>
+                <b>Reason:</b> {viewItem.reason}
+              </p>
+            )}
+            {viewItem.category && (
+              <p>
+                <b>Category:</b> {viewItem.category}
+              </p>
+            )}
+            {viewItem.term_months && (
+              <p>
+                <b>Term:</b> {viewItem.term_months} months
+              </p>
+            )}
+            <p>
+              <b>Status:</b> {viewItem.status}
+            </p>
+            {viewItem.id && (
+              <p className="muted" style={{ fontSize: 11 }}>
+                ID: {viewItem.id}
+              </p>
+            )}
+          </div>
+          <div className="form-actions">
+            <Button variant="ghost" onClick={() => setViewItem(null)}>
+              Close
+            </Button>
+          </div>
+        </Modal>
+      )}
     </AppShell>
   )
-            }
+}
