@@ -42,12 +42,17 @@ export default function Dashboard(){
 
 function MemberHome({data}:any){
   if(!data) return <div className="card">Loading dashboard…</div>
+  const status = data.member.status || data.member.membership_status || 'active'
   return (
     <>
       <div className="hero">
         <div className="eyebrow" style={{color:'#62dff2'}}>MEMBER PORTAL</div>
         <h2>Welcome, {data.member.full_name}</h2>
-        <p>Member {data.member.member_no} · <span className="badge green">{data.member.status}</span></p>
+        <p>
+          Member ID: <b>{data.member.member_no}</b>
+          {' · '}
+          <span className="badge green">{status}</span>
+        </p>
       </div>
       <div className="grid grid-3" style={{marginTop:16}}>
         <Stat label="Dues outstanding" value={naira(data.balances.dues_outstanding)} meta="Current balance" icon={WalletCards}/>
