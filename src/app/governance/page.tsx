@@ -195,36 +195,38 @@ export default function Governance() {
           )}
         </Card>
 
-        <Card style={{marginTop: 16}}>
-          <div className="section-title">
-            <h3>Announcements</h3>
-            <span className="badge gray">{announcements.length}</span>
-          </div>
-          {announcements.length ? (
-            <Table
-              headers={['Title', 'Audience', 'Status', 'Actions']}
-              rows={announcements.map((a) => [
-                a.title,
-                a.audience || 'all_members',
-                <span key="s" className={'badge ' + (a.published ? 'green' : 'amber')}>
-                  {a.published ? 'Published' : 'Draft'}
-                </span>,
-                <div key="act" style={{display: 'flex', gap: 6, flexWrap: 'wrap'}}>
-                  <Button variant="secondary" onClick={() => setViewAnn(a)}>
-                    View
-                  </Button>
-                  {isStaff && !a.published && (
-                    <Button variant="secondary" onClick={() => void publish(a.id)}>
-                      Publish
+        <div style={{marginTop: 16}}>
+          <Card>
+            <div className="section-title">
+              <h3>Announcements</h3>
+              <span className="badge gray">{announcements.length}</span>
+            </div>
+            {announcements.length ? (
+              <Table
+                headers={['Title', 'Audience', 'Status', 'Actions']}
+                rows={announcements.map((a) => [
+                  a.title,
+                  a.audience || 'all_members',
+                  <span key="s" className={'badge ' + (a.published ? 'green' : 'amber')}>
+                    {a.published ? 'Published' : 'Draft'}
+                  </span>,
+                  <div key="act" style={{display: 'flex', gap: 6, flexWrap: 'wrap'}}>
+                    <Button variant="secondary" onClick={() => setViewAnn(a)}>
+                      View
                     </Button>
-                  )}
-                </div>,
-              ])}
-            />
-          ) : (
-            <Empty text={isStaff ? 'No announcements yet. Create one as draft or published.' : 'No published announcements.'} />
-          )}
-        </Card>
+                    {isStaff && !a.published && (
+                      <Button variant="secondary" onClick={() => void publish(a.id)}>
+                        Publish
+                      </Button>
+                    )}
+                  </div>,
+                ])}
+              />
+            ) : (
+              <Empty text={isStaff ? 'No announcements yet. Create one as draft or published.' : 'No published announcements.'} />
+            )}
+          </Card>
+        </div>
       </div>
 
       {open && (
