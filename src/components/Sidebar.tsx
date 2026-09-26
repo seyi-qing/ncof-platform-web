@@ -19,6 +19,7 @@ import {
 } from 'lucide-react'
 import {clearSession} from '@/lib/api'
 import {getRole} from '@/lib/auth'
+import {APP_VERSION, API_VERSION_HINT} from '@/lib/version'
 
 const items = [
   ['/dashboard', 'Dashboard', LayoutDashboard, 'all'],
@@ -100,7 +101,9 @@ export default function Sidebar({
         <div className="org-note">
           Nigerian Committee of Friends
           <br />
-          <span>Connected to NCOF API v1.7.x</span>
+          <span>
+            Web v{APP_VERSION} · API {API_VERSION_HINT}
+          </span>
         </div>
         <button
           className="btn ghost"
