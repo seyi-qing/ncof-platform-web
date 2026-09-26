@@ -9,6 +9,7 @@ import {
 
 import AppShell from '@/components/AppShell'
 import { api } from '@/lib/api'
+import { printAsPdf, escapeHtmlPublic as esc } from '@/lib/printPdf'
 import { getRole } from '@/lib/auth'
 
 import {
@@ -145,6 +146,43 @@ export default function Finance() {
     members.map((m) => [m.id, m]),
   )
 
+  function exportDuesPdf() {
+    if (!dues.length) {
+      setErr('No dues records to export for this period.')
+      return
+    }
+    const periodLabel = `${period.year}-${String(period.month).padStart(2, '0')}`
+    const rows = dues
+      .map((x) => {
+        const name = esc(x.member_name || x.member_no || 'Member')
+        const status = esc(x.status || '')
+        const badge =
+          x.status === 'paid' ? 'ok' : x.status === 'partial' ? 'warn' : 'bad'
+        return `<tr>
+          <td>${name}</td>
+          <td>${esc(periodLabel)}</td>
+          <td class="right">${esc(naira(x.amount_due))}</td>
+          <td class="right">${esc(naira(x.amount_paid))}</td>
+          <td><span class="badge ${badge}">${status}</span></td>
+        </tr>`
+      })
+      .join('')
+    const totalDue = dues.reduce((s, x) => s + Number(x.amount_due || 0), 0)
+    const totalPaid = dues.reduce((s, x) => s + Number(x.amount_paid || 0), 0)
+    const body = `
+      <h1>Monthly dues statement</h1>
+      <p class="muted">Period: <b>${esc(periodLabel)}</b> · Records: ${dues.length}</p>
+      <table>
+        <thead>
+          <tr><th>Member</th><th>Period</th><th class="right">Due</th><th class="right">Paid</th><th>Status</th></tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <p class="totals">Total due: ${esc(naira(totalDue))} · Total paid: ${esc(naira(totalPaid))}</p>
+    `
+    printAsPdf(`NCOF dues ${periodLabel}`, body)
+  }
+
   return (
     <AppShell title="Finance">
       <div className="content">
@@ -223,8 +261,12 @@ export default function Finance() {
                 display: 'flex',
                 gap: 8,
                 alignItems: 'center',
+                flexWrap: 'wrap',
               }}
             >
+              <Button variant="secondary" type="button" onClick={exportDuesPdf}>
+                Export PDF
+              </Button>
               <Field
                 label="Year"
                 type="number"
