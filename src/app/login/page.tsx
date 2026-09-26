@@ -1,9 +1,10 @@
 'use client'
-import {FormEvent, useState} from 'react'
-import {useRouter} from 'next/navigation'
-import {ShieldCheck} from 'lucide-react'
-import {api, setSession} from '@/lib/api'
-import {Button, ErrorBox, Field} from '@/components/UI'
+
+import { FormEvent, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { ShieldCheck } from 'lucide-react'
+import { api, setSession } from '@/lib/api'
+import { Button, ErrorBox, Field } from '@/components/UI'
 
 export default function Login() {
   const router = useRouter()
@@ -16,13 +17,25 @@ export default function Login() {
     e.preventDefault()
     setBusy(true)
     setErr('')
+
     try {
-      const session = await api<{access_token: string; refresh_token?: string}>('/auth/login', {
+      const session = await api<{
+        access_token: string
+        refresh_token?: string | null
+        token_type?: string
+        must_change_password?: boolean
+      }>('/auth/login', {
         method: 'POST',
-        body: JSON.stringify({email, password}),
+        body: JSON.stringify({ email, password }),
       })
+
       setSession(session)
-      router.replace('/dashboard')
+
+      if (session.must_change_password) {
+        router.replace('/change-password')
+      } else {
+        router.replace('/dashboard')
+      }
     } catch (ex: unknown) {
       setErr(ex instanceof Error ? ex.message : String(ex))
     } finally {
@@ -36,11 +49,14 @@ export default function Login() {
         <div className="logo" aria-hidden>
           N
         </div>
+
         <h1>One platform for NCOF operations.</h1>
+
         <p>
-          Members, finance, governance, meetings and elections in one controlled workspace connected
-          to the NCOF Platform API.
+          Members, finance, governance, meetings and elections in one
+          controlled workspace connected to the NCOF Platform API.
         </p>
+
         <div className="pill-row">
           <span className="badge blue">FastAPI</span>
           <span className="badge blue">PostgreSQL</span>
@@ -51,9 +67,13 @@ export default function Login() {
       <div className="login-box">
         <div className="login-card">
           <ShieldCheck size={28} color="#3b82f6" aria-hidden />
+
           <h2>Sign in</h2>
+
           <p>Use your NCOF account credentials.</p>
+
           {err && <ErrorBox message={err} />}
+
           <form onSubmit={submit}>
             <Field
               label="Email"
@@ -65,6 +85,7 @@ export default function Login() {
               inputMode="email"
               placeholder="you@ncof.org"
             />
+
             <Field
               label="Password"
               type="password"
@@ -74,11 +95,20 @@ export default function Login() {
               autoComplete="current-password"
               placeholder="••••••••"
             />
+
             <Button loading={busy} type="submit">
               Sign in
             </Button>
           </form>
-          <p style={{marginTop: 16, marginBottom: 0, fontSize: 11, color: 'var(--text-dim)'}}>
+
+          <p
+            style={{
+              marginTop: 16,
+              marginBottom: 0,
+              fontSize: 11,
+              color: 'var(--text-dim)',
+            }}
+          >
             Credentials are sent directly to the NCOF API over HTTPS.
           </p>
         </div>
