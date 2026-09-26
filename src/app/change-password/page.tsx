@@ -33,10 +33,6 @@ export default function ChangePasswordPage() {
       return
     }
 
-    /*
-     * If the account is not actually flagged for a mandatory
-     * password change, there is no reason to keep the user here.
-     */
     if (!session.must_change_password) {
       router.replace('/dashboard')
       return
@@ -88,13 +84,6 @@ export default function ChangePasswordPage() {
     setBusy(true)
 
     try {
-      /*
-       * Do not use api() here.
-
-       * api.ts intentionally treats /auth/change-password as an
-       * authentication path, so this request needs to explicitly
-       * send the existing access token.
-       */
       const response = await fetch(`${API_BASE}/auth/change-password`, {
         method: 'POST',
         headers: {
@@ -184,11 +173,6 @@ export default function ChangePasswordPage() {
         )
       }
 
-      /*
-       * The backend issues a new access token and refresh token.
-       * Preserve the existing session structure while replacing
-       * the authentication values returned by the backend.
-       */
       setSession({
         access_token: result.access_token,
         refresh_token:
@@ -207,10 +191,6 @@ export default function ChangePasswordPage() {
         'Your password has been changed successfully.',
       )
 
-      /*
-       * Give the member a short confirmation before returning
-       * to the normal NCOF dashboard.
-       */
       window.setTimeout(() => {
         router.replace('/dashboard')
       }, 700)
@@ -241,10 +221,8 @@ export default function ChangePasswordPage() {
   return (
     <div className="login-page">
       <div className="login-brand">
-        <div className="login-brand">
-          <div className="logo" aria-hidden>
-            N
-          </div>
+        <div className="logo" aria-hidden>
+          N
         </div>
 
         <h1>Secure your NCOF account.</h1>
@@ -290,6 +268,7 @@ export default function ChangePasswordPage() {
               }}
             >
               <strong>Password changed successfully.</strong>
+
               <div
                 className="muted"
                 style={{ marginTop: 4 }}
