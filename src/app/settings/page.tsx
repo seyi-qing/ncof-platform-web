@@ -2,10 +2,10 @@
 
 import {useEffect, useState} from 'react'
 import {useRouter} from 'next/navigation'
-import {LogOut, Shield, Activity, User} from 'lucide-react'
+import {LogOut, Activity, User} from 'lucide-react'
 import AppShell from '@/components/AppShell'
 import {api, getSession, API_BASE} from '@/lib/api'
-import {getRole, getUserId} from '@/lib/auth'
+import {getRole} from '@/lib/auth'
 import {Card, PageHeader, Button, ErrorBox, SuccessBox, Field} from '@/components/UI'
 
 function tokenClaims(): Record<string, unknown> {
@@ -31,14 +31,15 @@ export default function Settings() {
   const [ready, setReady] = useState<any>(null)
   const [profile, setProfile] = useState<any>(null)
   const [edit, setEdit] = useState(false)
+  const [saving, setSaving] = useState(false)
   const [form, setForm] = useState({full_name: '', phone: '', email: ''})
+  const [noMember, setNoMember] = useState(false)
 
   const claims = tokenClaims()
   const session = typeof window !== 'undefined' ? getSession() : null
 
   async function ping() {
     setErr('')
-    setOk('')
     try {
       const base = API_BASE.replace(/\/api\/v1\/?$/, '')
       const [h, r] = await Promise.all([
@@ -47,7 +48,6 @@ export default function Settings() {
       ])
       setHealth(h)
       setReady(r)
-      setOk('Connection check completed.')
     } catch (e: any) {
       setErr(e.message || 'Health check failed')
     }
@@ -55,20 +55,17 @@ export default function Settings() {
 
   async function loadProfile() {
     try {
-      if (role === 'member') {
-        const d = await api<any>('/member-portal/dashboard')
-        const m = d?.member
-        if (m) {
-          setProfile(m)
-          setForm({
-            full_name: m.full_name || '',
-            phone: m.phone || '',
-            email: m.email || '',
-          })
-        }
-      }
-    } catch {
-      // non-fatal — show JWT claims only
+      const m = await api<any>('/members/me')
+      setProfile(m)
+      setNoMember(false)
+      setForm({
+        full_name: m.full_name || '',
+        phone: m.phone || '',
+        email: m.email || '',
+      })
+    } catch (e: any) {
+      setNoMember(true)
+      setProfile(null)
     }
   }
 
@@ -80,6 +77,35 @@ export default function Settings() {
   function signOut() {
     localStorage.removeItem('ncof_session')
     router.replace('/login')
+  }
+
+  async function saveProfile() {
+    setErr('')
+    setOk('')
+    setSaving(true)
+    try {
+      const body: Record<string, string> = {}
+      if (form.full_name.trim()) body.full_name = form.full_name.trim()
+      if (form.email.trim()) body.email = form.email.trim()
+      body.phone = form.phone.trim()
+
+      const m = await api<any>('/members/me', {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+      })
+      setProfile(m)
+      setForm({
+        full_name: m.full_name || '',
+        phone: m.phone || '',
+        email: m.email || '',
+      })
+      setEdit(false)
+      setOk('Profile updated.')
+    } catch (e: any) {
+      setErr(e.message || 'Could not save profile')
+    } finally {
+      setSaving(false)
+    }
   }
 
   const displayName =
@@ -130,9 +156,10 @@ export default function Settings() {
                 Phone: <b>{profile.phone}</b>
               </p>
             )}
-            {profile?.status && (
+            {profile?.membership_status && (
               <p className="muted" style={{fontSize: 12}}>
-                Membership: <span className="badge green">{profile.status}</span>
+                Membership:{' '}
+                <span className="badge green">{profile.membership_status}</span>
               </p>
             )}
 
@@ -143,25 +170,35 @@ export default function Settings() {
               Session: {session?.access_token ? 'Signed in' : 'No session'}
             </p>
 
-            {!edit ? (
+            {noMember && (
+              <p className="muted" style={{fontSize: 12, marginTop: 10}}>
+                No member profile is linked to this login. An admin can link one from Members.
+              </p>
+            )}
+
+            {!noMember && !edit && (
               <div style={{marginTop: 12}}>
                 <Button variant="secondary" onClick={() => setEdit(true)}>
                   Edit profile
                 </Button>
                 <p className="muted" style={{fontSize: 11, marginTop: 8}}>
-                  Name, phone and email updates are applied by an admin for now.
+                  You can update name, email and phone. Membership status is managed by staff.
                   Change password from the security prompt when required.
                 </p>
               </div>
-            ) : (
+            )}
+
+            {!noMember && edit && (
               <div style={{marginTop: 12}}>
                 <Field
                   label="Full name"
                   value={form.full_name}
                   onChange={(e: any) => setForm({...form, full_name: e.target.value})}
+                  required
                 />
                 <Field
                   label="Email"
+                  type="email"
                   value={form.email}
                   onChange={(e: any) => setForm({...form, email: e.target.value})}
                 />
@@ -171,16 +208,21 @@ export default function Settings() {
                   onChange={(e: any) => setForm({...form, phone: e.target.value})}
                 />
                 <div className="form-actions">
-                  <Button variant="ghost" type="button" onClick={() => setEdit(false)}>
-                    Cancel
-                  </Button>
                   <Button
+                    variant="ghost"
                     type="button"
                     onClick={() => {
-                      setOk('Profile edit is recorded for admin follow-up. Self-serve save ships next.')
                       setEdit(false)
+                      setForm({
+                        full_name: profile?.full_name || '',
+                        phone: profile?.phone || '',
+                        email: profile?.email || '',
+                      })
                     }}
                   >
+                    Cancel
+                  </Button>
+                  <Button type="button" loading={saving} onClick={() => void saveProfile()}>
                     Save
                   </Button>
                 </div>
@@ -193,7 +235,12 @@ export default function Settings() {
               <h3>
                 <Activity size={16} style={{verticalAlign: '-3px'}} /> API connection
               </h3>
-              <Button variant="secondary" onClick={() => void ping()}>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  void ping().then(() => setOk('Connection check completed.'))
+                }}
+              >
                 Recheck
               </Button>
             </div>
