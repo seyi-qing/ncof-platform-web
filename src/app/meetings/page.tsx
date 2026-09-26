@@ -1,7 +1,7 @@
 'use client'
 
 import {useEffect, useState} from 'react'
-import {Plus, CalendarDays, Pencil, Users} from 'lucide-react'
+import {Plus, CalendarDays, Pencil, Users, FileText} from 'lucide-react'
 import AppShell from '@/components/AppShell'
 import {api} from '@/lib/api'
 import {getRole} from '@/lib/auth'
@@ -19,6 +19,7 @@ type Meeting = {
 export default function Meetings() {
   const role = getRole()
   const canManage = role === 'admin' || role === 'executive' || role === 'secretary'
+  const canApprove = role === 'admin' || role === 'executive'
 
   const [data, setData] = useState<Meeting[]>([])
   const [members, setMembers] = useState<any[]>([])
@@ -27,6 +28,8 @@ export default function Meetings() {
   const [editing, setEditing] = useState(false)
   const [agenda, setAgenda] = useState<any>(null)
   const [agendaItems, setAgendaItems] = useState<any[]>([])
+  const [minutes, setMinutes] = useState<any>(null)
+  const [minutesText, setMinutesText] = useState('')
   const [err, setErr] = useState('')
   const [success, setSuccess] = useState('')
   const [form, setForm] = useState({title: '', meeting_date: '', location: ''})
@@ -70,6 +73,8 @@ export default function Meetings() {
   async function openDetail(m: Meeting) {
     setErr('')
     setEditing(false)
+    setMinutes(null)
+    setMinutesText('')
     try {
       if (canManage && members.length === 0) {
         try {
@@ -87,6 +92,14 @@ export default function Meetings() {
         setAgendaItems(await api<any[]>(`/governance/meetings/${m.id}/agenda`))
       } catch {
         setAgendaItems([])
+      }
+      try {
+        const min = await api<any>(`/governance/meetings/${m.id}/minutes`)
+        setMinutes(min)
+        setMinutesText(min.content || '')
+      } catch {
+        setMinutes(null)
+        setMinutesText('')
       }
     } catch (e: any) {
       setErr(e.message)
@@ -156,6 +169,36 @@ export default function Meetings() {
     }
   }
 
+  async function saveMinutes(e: any) {
+    e.preventDefault()
+    if (!detail) return
+    setErr('')
+    try {
+      const min = await api<any>(`/governance/meetings/${detail.id}/minutes`, {
+        method: 'POST',
+        body: JSON.stringify({content: minutesText, status: 'draft'}),
+      })
+      setMinutes(min)
+      setSuccess('Minutes saved as draft.')
+    } catch (e: any) {
+      setErr(e.message)
+    }
+  }
+
+  async function approveMinutes() {
+    if (!detail) return
+    setErr('')
+    try {
+      const min = await api<any>(`/governance/meetings/${detail.id}/minutes/approve`, {
+        method: 'POST',
+      })
+      setMinutes(min)
+      setSuccess('Minutes approved.')
+    } catch (e: any) {
+      setErr(e.message)
+    }
+  }
+
   const memberName = (id: string, fallbackName?: string | null) => {
     if (fallbackName) return fallbackName
     const m = members.find((x) => x.id === id)
@@ -167,7 +210,7 @@ export default function Meetings() {
       <div className="content">
         <PageHeader
           title="Meetings"
-          description="Plan meetings, manage agendas and record attendance."
+          description="Plan meetings, manage agendas, attendance and minutes."
           action={
             canManage ? (
               <Button onClick={() => setOpen(true)}>
@@ -313,6 +356,41 @@ export default function Meetings() {
                     <Button type="submit">Record attendance</Button>
                   </div>
                 </form>
+              )}
+
+              <h4 style={{marginTop: 20, fontSize: 14}}>
+                <FileText size={14} style={{verticalAlign: '-2px'}} /> Minutes
+              </h4>
+              {minutes ? (
+                <div style={{marginTop: 8}}>
+                  <span className={'badge ' + (minutes.status === 'approved' ? 'green' : 'amber')}>
+                    {minutes.status || 'draft'}
+                  </span>
+                  <p style={{fontSize: 13, marginTop: 10, whiteSpace: 'pre-wrap'}}>
+                    {minutes.content}
+                  </p>
+                  {canApprove && minutes.status !== 'approved' && (
+                    <div className="form-actions">
+                      <Button type="button" onClick={() => void approveMinutes()}>
+                        Approve minutes
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              ) : canManage ? (
+                <form onSubmit={saveMinutes} style={{marginTop: 8}}>
+                  <Textarea
+                    label="Meeting notes"
+                    value={minutesText}
+                    onChange={(e: any) => setMinutesText(e.target.value)}
+                    required
+                  />
+                  <div className="form-actions">
+                    <Button type="submit">Save minutes draft</Button>
+                  </div>
+                </form>
+              ) : (
+                <p className="muted" style={{fontSize: 12}}>No minutes recorded yet.</p>
               )}
             </>
           ) : (
