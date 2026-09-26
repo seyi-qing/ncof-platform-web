@@ -32,7 +32,7 @@ export default function Governance() {
     try {
       setCommittees(await api<any[]>('/governance/committees'))
       const path = isStaff
-        ? '/governance/announcements?include_drafts=true'
+        ? '/governance/announcements/all'
         : '/governance/announcements'
       setAnnouncements(await api<any[]>(path))
       if (isStaff) {
