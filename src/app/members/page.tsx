@@ -42,6 +42,9 @@ export default function Members(){
   const [editForm,setEditForm] = useState({full_name:'',email:'',phone:'',membership_status:'active'})
   const [accountPassword,setAccountPassword] = useState('')
   const [accountRole,setAccountRole] = useState('member')
+  const [roleTarget,setRoleTarget] = useState<Member|null>(null)
+  const [roleBusy,setRoleBusy] = useState(false)
+  const [newRole,setNewRole] = useState('member')
 
   const load = async () => {
     setErr('')
@@ -97,6 +100,34 @@ export default function Members(){
     })
     setErr('')
     setSuccess('')
+  }
+
+  function openRole(member:Member){
+    setRoleTarget(member)
+    setNewRole('member')
+    setErr('')
+    setSuccess('')
+  }
+
+  async function saveRole(e:any){
+    e.preventDefault()
+    if(!roleTarget) return
+    setErr('')
+    setSuccess('')
+    setRoleBusy(true)
+    try{
+      const res = await api<{role:string; email:string}>(`/members/${roleTarget.id}/role`,{
+        method:'PATCH',
+        body:JSON.stringify({role: newRole})
+      })
+      setSuccess(`Role for ${roleTarget.full_name} set to ${res.role || newRole}.`)
+      setRoleTarget(null)
+      await load()
+    }catch(e:any){
+      setErr(e.message)
+    }finally{
+      setRoleBusy(false)
+    }
   }
 
   async function saveEdit(e:any){
@@ -206,16 +237,20 @@ export default function Members(){
                       <Pencil size={14}/>Edit
                     </Button>
                   )}
-                  {canCreateAccount && !m.has_login_account ? (
+                  {canCreateAccount && !m.has_login_account && (
                     <Button variant="secondary" onClick={()=>openAccount(m)}>
                       <KeyRound size={14}/>Create login
                     </Button>
-                  ) : (
-                    !canEdit && (
+                  )}
+                  {canCreateAccount && m.has_login_account && (
+                    <Button variant="secondary" onClick={()=>openRole(m)}>
+                      Set role
+                    </Button>
+                  )}
+                  {!canCreateAccount && !canEdit && (
                       <span className="muted" style={{fontSize:11}}>
                         {m.has_login_account ? 'Account exists' : '—'}
                       </span>
-                    )
                   )}
                 </div>
               ])}
@@ -341,6 +376,28 @@ export default function Members(){
               <Button type="submit" loading={accountBusy} disabled={!selected.email || accountPassword.length < 12}>
                 Create login
               </Button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {roleTarget&&(
+        <Modal title={`Set role — ${roleTarget.full_name}`} onClose={()=>setRoleTarget(null)}>
+          <form onSubmit={saveRole}>
+            <p className="muted" style={{fontSize:12,marginBottom:12}}>
+              Changes the login role for <b>{roleTarget.email || 'this member'}</b>.
+            </p>
+            <label className="field">
+              <span className="field-label">Role</span>
+              <select className="input" value={newRole} onChange={(e)=>setNewRole(e.target.value)}>
+                {STAFF_ROLES.map(r=>(
+                  <option key={r.value} value={r.value}>{r.label}</option>
+                ))}
+              </select>
+            </label>
+            <div className="form-actions">
+              <Button type="button" variant="ghost" onClick={()=>setRoleTarget(null)}>Cancel</Button>
+              <Button type="submit" loading={roleBusy}>Save role</Button>
             </div>
           </form>
         </Modal>
