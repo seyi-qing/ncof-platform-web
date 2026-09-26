@@ -71,6 +71,11 @@ export default function Meetings() {
     setErr('')
     setEditing(false)
     try {
+      if (canManage && members.length === 0) {
+        try {
+          setMembers(await api<any[]>('/members'))
+        } catch {}
+      }
       const d = await api<any>(`/meetings/${m.id}`)
       setDetail(d)
       setEditForm({
@@ -151,9 +156,10 @@ export default function Meetings() {
     }
   }
 
-  const memberName = (id: string) => {
+  const memberName = (id: string, fallbackName?: string | null) => {
+    if (fallbackName) return fallbackName
     const m = members.find((x) => x.id === id)
-    return m ? m.full_name : id.slice(0, 8)
+    return m ? m.full_name : 'Member'
   }
 
   return (
@@ -265,7 +271,8 @@ export default function Meetings() {
                 <ul style={{fontSize: 13, paddingLeft: 18}}>
                   {detail.attendance.map((a: any, i: number) => (
                     <li key={i}>
-                      {memberName(a.member_id)}{' - '}<span className="badge gray">{a.status}</span>
+                      {memberName(a.member_id, a.member_name)}{' - '}
+                      <span className="badge gray">{a.status}</span>
                     </li>
                   ))}
                 </ul>
