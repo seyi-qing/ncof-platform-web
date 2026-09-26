@@ -8,8 +8,8 @@ import {Card,Stat,PageHeader,Table,Empty,ErrorBox,Refresh} from '@/components/UI
 
 const naira=(v:any)=>{
   const n=Number(v)
-  if(!Number.isFinite(n)) return 'NGN 0.00'
-  return 'NGN '+n.toLocaleString('en-NG',{minimumFractionDigits:2,maximumFractionDigits:2})
+  if(!Number.isFinite(n)) return '\u20A60.00'
+  return '\u20A6'+n.toLocaleString('en-NG',{minimumFractionDigits:2,maximumFractionDigits:2})
 }
 
 export default function Dashboard(){
