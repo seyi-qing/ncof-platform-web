@@ -57,8 +57,8 @@ export default function ChangePasswordPage() {
       return
     }
 
-    if (newPassword.length < 8) {
-      setErr('Your new password must be at least 8 characters long.')
+    if (newPassword.length < 12) {
+      setErr('Your new password must be at least 12 characters long.')
       return
     }
 
@@ -299,9 +299,9 @@ export default function ChangePasswordPage() {
                 setNewPassword(e.target.value)
               }
               required
-              minLength={8}
+              minLength={12}
               autoComplete="new-password"
-              placeholder="At least 8 characters"
+              placeholder="At least 12 characters"
             />
 
             <Field
@@ -312,7 +312,7 @@ export default function ChangePasswordPage() {
                 setConfirmPassword(e.target.value)
               }
               required
-              minLength={8}
+              minLength={12}
               autoComplete="new-password"
               placeholder="Enter the new password again"
             />
@@ -345,4 +345,4 @@ export default function ChangePasswordPage() {
       </div>
     </div>
   )
-        }
+}
