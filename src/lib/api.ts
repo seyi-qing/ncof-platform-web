@@ -1,4 +1,7 @@
-const BASE = (process.env.NEXT_PUBLIC_API_URL || 'https://ncof-api.vercel.app/api/v1').replace(/\/$/, '')
+const BASE = (
+  process.env.NEXT_PUBLIC_API_URL ||
+  'https://ncof-api.vercel.app/api/v1'
+).replace(/\/$/, '')
 
 export type Session = {
   access_token: string
@@ -9,7 +12,9 @@ export type Session = {
 
 export function getSession(): Session | null {
   if (typeof window === 'undefined') return null
+
   const raw = localStorage.getItem('ncof_session')
+
   try {
     return raw ? (JSON.parse(raw) as Session) : null
   } catch {
@@ -18,7 +23,10 @@ export function getSession(): Session | null {
 }
 
 export function setSession(session: Session) {
-  localStorage.setItem('ncof_session', JSON.stringify(session))
+  localStorage.setItem(
+    'ncof_session',
+    JSON.stringify(session),
+  )
 }
 
 export function clearSession() {
@@ -26,38 +34,50 @@ export function clearSession() {
 }
 
 function formatError(body: unknown, status: number): string {
-  if (body == null || body === '') return `Request failed (${status})`
-
-  if (typeof body === 'string') return body
-
-  if (typeof body === 'object') {
+  if (
+    body &&
+    typeof body === 'object' &&
+    'detail' in body
+  ) {
     const detail = (body as { detail?: unknown }).detail
 
-    if (typeof detail === 'string') return detail
+    if (typeof detail === 'string') {
+      return detail
+    }
 
     if (Array.isArray(detail)) {
       return detail
         .map((item) => {
-          if (typeof item === 'string') return item
-
-          if (item && typeof item === 'object' && 'msg' in item) {
-            const loc = Array.isArray((item as { loc?: unknown }).loc)
-              ? (item as { loc: unknown[] }).loc.join('.')
-              : ''
-
-            return loc
-              ? `${loc}: ${(item as { msg: string }).msg}`
-              : String((item as { msg: string }).msg)
+          if (
+            item &&
+            typeof item === 'object' &&
+            'msg' in item
+          ) {
+            return String(
+              (item as { msg: unknown }).msg,
+            )
           }
 
-          return JSON.stringify(item)
+          return String(item)
         })
         .join('; ')
     }
+  }
 
-    if (typeof (body as { message?: unknown }).message === 'string') {
-      return (body as { message: string }).message
-    }
+  if (
+    body &&
+    typeof body === 'object' &&
+    'message' in body &&
+    typeof (body as { message?: unknown }).message ===
+      'string'
+  ) {
+    return String(
+      (body as { message: string }).message,
+    )
+  }
+
+  if (typeof body === 'string' && body) {
+    return body
   }
 
   return `Request failed (${status})`
@@ -66,17 +86,27 @@ function formatError(body: unknown, status: number): string {
 async function refreshSession(): Promise<Session | null> {
   const current = getSession()
 
-  if (!current?.refresh_token) return null
+  if (!current?.refresh_token) {
+    return null
+  }
 
-  const res = await fetch(`${BASE}/auth/refresh`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      refresh_token: current.refresh_token,
-    }),
-  })
+  const res = await fetch(
+    `${BASE}/auth/refresh`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        refresh_token: current.refresh_token,
+      }),
+      cache: 'no-store',
+    },
+  )
 
-  if (!res.ok) return null
+  if (!res.ok) {
+    return null
+  }
 
   const next = (await res.json()) as Session
 
@@ -92,10 +122,18 @@ export async function api<T>(
 ): Promise<T> {
   const session = getSession()
 
-  const headers = new Headers(options.headers || {})
+  const headers = new Headers(
+    options.headers || {},
+  )
 
-  if (!headers.has('Content-Type') && options.body) {
-    headers.set('Content-Type', 'application/json')
+  if (
+    !headers.has('Content-Type') &&
+    options.body
+  ) {
+    headers.set(
+      'Content-Type',
+      'application/json',
+    )
   }
 
   const isAuthPath =
@@ -103,7 +141,10 @@ export async function api<T>(
     path.startsWith('/auth/refresh') ||
     path.startsWith('/auth/change-password')
 
-  if (session?.access_token && !isAuthPath) {
+  if (
+    session?.access_token &&
+    !isAuthPath
+  ) {
     headers.set(
       'Authorization',
       `Bearer ${session.access_token}`,
@@ -111,7 +152,11 @@ export async function api<T>(
   }
 
   const res = await fetch(
-    `${BASE}${path.startsWith('/') ? path : `/${path}`}`,
+    `${BASE}${
+      path.startsWith('/')
+        ? path
+        : `/${path}`
+    }`,
     {
       ...options,
       headers,
@@ -128,12 +173,18 @@ export async function api<T>(
     const next = await refreshSession()
 
     if (next) {
-      return api<T>(path, options, false)
+      return api<T>(
+        path,
+        options,
+        false,
+      )
     }
 
     clearSession()
 
-    if (typeof window !== 'undefined') {
+    if (
+      typeof window !== 'undefined'
+    ) {
       window.location.href = '/login'
     }
   }
@@ -151,7 +202,9 @@ export async function api<T>(
   }
 
   if (!res.ok) {
-    throw new Error(formatError(body, res.status))
+    throw new Error(
+      formatError(body, res.status),
+    )
   }
 
   return body as T
