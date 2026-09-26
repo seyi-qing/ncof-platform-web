@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { ShieldCheck } from 'lucide-react'
 import { api, setSession } from '@/lib/api'
 import { Button, ErrorBox, Field } from '@/components/UI'
@@ -46,9 +47,9 @@ export default function Login() {
   return (
     <div className="login-page">
       <div className="login-brand">
-        <div className="logo" aria-hidden>
+        <Link href="/" className="logo" aria-label="NCOF home" style={{ textDecoration: 'none' }}>
           N
-        </div>
+        </Link>
 
         <h1>One platform for NCOF operations.</h1>
 
@@ -110,6 +111,19 @@ export default function Login() {
             }}
           >
             Credentials are sent directly to the NCOF API over HTTPS.
+          </p>
+
+          <p style={{ marginTop: 14, marginBottom: 0, textAlign: 'center' }}>
+            <Link
+              href="/"
+              style={{
+                fontSize: 13,
+                color: 'var(--text-muted)',
+                textDecoration: 'none',
+              }}
+            >
+              ← Back to home
+            </Link>
           </p>
         </div>
       </div>
