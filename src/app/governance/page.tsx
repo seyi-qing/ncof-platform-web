@@ -145,7 +145,7 @@ export default function Governance() {
 
   const memberName = (id: string) => {
     const m = members.find((x) => x.id === id)
-    return m ? m.full_name : id?.slice(0, 8) || '\u2014'
+    return m ? m.full_name : id?.slice(0, 8) || '-'
   }
 
   return (
@@ -181,7 +181,7 @@ export default function Governance() {
               headers={['Name', 'Description', 'Status', 'Actions']}
               rows={committees.map((c) => [
                 <b key="n">{c.name}</b>,
-                c.description || '\u2014',
+                c.description || '-',
                 <span key="s" className={'badge ' + (c.status === 'active' ? 'green' : 'gray')}>
                   {c.status || 'active'}
                 </span>,
@@ -254,8 +254,8 @@ export default function Governance() {
                 value={ann.published ? 'yes' : 'no'}
                 onChange={(e) => setAnn({...ann, published: e.target.value === 'yes'})}
               >
-                <option value="yes">Yes \u2014 publish</option>
-                <option value="no">No \u2014 save draft</option>
+                <option value="yes">Yes - publish</option>
+                <option value="no">No - save draft</option>
               </select>
             </label>
             <div className="form-actions">
@@ -269,7 +269,7 @@ export default function Governance() {
       {viewAnn && (
         <Modal title={viewAnn.title} onClose={() => setViewAnn(null)}>
           <p className="muted" style={{fontSize: 12, marginBottom: 8}}>
-            {viewAnn.published ? 'Published' : 'Draft'} \u00b7 {viewAnn.audience}
+            {viewAnn.published ? 'Published' : 'Draft'} · {viewAnn.audience}
           </p>
           <p style={{fontSize: 14, whiteSpace: 'pre-wrap'}}>{viewAnn.body}</p>
           <div className="form-actions">
@@ -296,7 +296,7 @@ export default function Governance() {
                 <ul style={{fontSize: 13, paddingLeft: 18}}>
                   {detail.members.map((m: any) => (
                     <li key={m.id || m.member_id}>
-                      {memberName(m.member_id)} \u2014 {m.position}
+                      {memberName(m.member_id)}{' - '}{m.position}
                     </li>
                   ))}
                 </ul>
