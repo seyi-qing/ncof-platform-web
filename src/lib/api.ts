@@ -4,6 +4,7 @@ export type Session = {
   access_token: string
   refresh_token?: string | null
   token_type?: string
+  must_change_password?: boolean
 }
 
 export function getSession(): Session | null {
@@ -26,71 +27,121 @@ export function clearSession() {
 
 function formatError(body: unknown, status: number): string {
   if (body == null || body === '') return `Request failed (${status})`
+
   if (typeof body === 'string') return body
+
   if (typeof body === 'object') {
     const detail = (body as { detail?: unknown }).detail
+
     if (typeof detail === 'string') return detail
+
     if (Array.isArray(detail)) {
       return detail
         .map((item) => {
           if (typeof item === 'string') return item
+
           if (item && typeof item === 'object' && 'msg' in item) {
             const loc = Array.isArray((item as { loc?: unknown }).loc)
               ? (item as { loc: unknown[] }).loc.join('.')
               : ''
-            return loc ? `${loc}: ${(item as { msg: string }).msg}` : String((item as { msg: string }).msg)
+
+            return loc
+              ? `${loc}: ${(item as { msg: string }).msg}`
+              : String((item as { msg: string }).msg)
           }
+
           return JSON.stringify(item)
         })
         .join('; ')
     }
+
     if (typeof (body as { message?: unknown }).message === 'string') {
       return (body as { message: string }).message
     }
   }
+
   return `Request failed (${status})`
 }
 
 async function refreshSession(): Promise<Session | null> {
   const current = getSession()
+
   if (!current?.refresh_token) return null
+
   const res = await fetch(`${BASE}/auth/refresh`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ refresh_token: current.refresh_token }),
+    body: JSON.stringify({
+      refresh_token: current.refresh_token,
+    }),
   })
+
   if (!res.ok) return null
+
   const next = (await res.json()) as Session
+
   setSession(next)
+
   return next
 }
 
-export async function api<T>(path: string, options: RequestInit = {}, retry = true): Promise<T> {
+export async function api<T>(
+  path: string,
+  options: RequestInit = {},
+  retry = true,
+): Promise<T> {
   const session = getSession()
+
   const headers = new Headers(options.headers || {})
+
   if (!headers.has('Content-Type') && options.body) {
     headers.set('Content-Type', 'application/json')
   }
-  const isAuthPath = path.startsWith('/auth/login') || path.startsWith('/auth/refresh')
+
+  const isAuthPath =
+    path.startsWith('/auth/login') ||
+    path.startsWith('/auth/refresh') ||
+    path.startsWith('/auth/change-password')
+
   if (session?.access_token && !isAuthPath) {
-    headers.set('Authorization', `Bearer ${session.access_token}`)
+    headers.set(
+      'Authorization',
+      `Bearer ${session.access_token}`,
+    )
   }
 
-  const res = await fetch(`${BASE}${path.startsWith('/') ? path : `/${path}`}`, {
-    ...options,
-    headers,
-    cache: 'no-store',
-  })
+  const res = await fetch(
+    `${BASE}${path.startsWith('/') ? path : `/${path}`}`,
+    {
+      ...options,
+      headers,
+      cache: 'no-store',
+    },
+  )
 
-  if (res.status === 401 && retry && !isAuthPath && session?.refresh_token) {
+  if (
+    res.status === 401 &&
+    retry &&
+    !isAuthPath &&
+    session?.refresh_token
+  ) {
     const next = await refreshSession()
-    if (next) return api<T>(path, options, false)
+
+    if (next) {
+      return api<T>(path, options, false)
+    }
+
     clearSession()
-    if (typeof window !== 'undefined') window.location.href = '/login'
+
+    if (typeof window !== 'undefined') {
+      window.location.href = '/login'
+    }
   }
 
   const text = await res.text()
+
   let body: unknown = null
+
   if (text) {
     try {
       body = JSON.parse(text)
@@ -99,7 +150,10 @@ export async function api<T>(path: string, options: RequestInit = {}, retry = tr
     }
   }
 
-  if (!res.ok) throw new Error(formatError(body, res.status))
+  if (!res.ok) {
+    throw new Error(formatError(body, res.status))
+  }
+
   return body as T
 }
 
