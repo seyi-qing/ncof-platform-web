@@ -186,7 +186,7 @@ export default function Meetings() {
               rows={data.map((m) => [
                 <b key="t">{m.title}</b>,
                 new Date(m.meeting_date).toLocaleString(),
-                m.location || '\u2014',
+                m.location || '-',
                 <div key="a" style={{display: 'flex', gap: 6, flexWrap: 'wrap'}}>
                   <Button variant="secondary" onClick={() => void openDetail(m)}>
                     Open
@@ -234,7 +234,7 @@ export default function Meetings() {
             <>
               <p className="muted" style={{fontSize: 13}}>
                 {new Date(detail.meeting_date).toLocaleString()}
-                {detail.location ? ` \u00b7 ${detail.location}` : ''}
+                {detail.location ? ` · ${detail.location}` : ''}
               </p>
               {canManage && (
                 <div style={{margin: '12px 0'}}>
@@ -250,7 +250,7 @@ export default function Meetings() {
                   {agendaItems.map((a) => (
                     <li key={a.id || a.item_no}>
                       <b>{a.item_no}. {a.title}</b>
-                      {a.presenter ? ` \u2014 ${a.presenter}` : ''}
+                      {a.presenter ? ` - ${a.presenter}` : ''}
                     </li>
                   ))}
                 </ul>
@@ -265,7 +265,7 @@ export default function Meetings() {
                 <ul style={{fontSize: 13, paddingLeft: 18}}>
                   {detail.attendance.map((a: any, i: number) => (
                     <li key={i}>
-                      {memberName(a.member_id)} \u2014 <span className="badge gray">{a.status}</span>
+                      {memberName(a.member_id)}{' - '}<span className="badge gray">{a.status}</span>
                     </li>
                   ))}
                 </ul>
@@ -323,7 +323,7 @@ export default function Meetings() {
       )}
 
       {agenda && (
-        <Modal title={`Agenda \u2014 ${agenda.title}`} onClose={() => setAgenda(null)}>
+        <Modal title={`Agenda - ${agenda.title}`} onClose={() => setAgenda(null)}>
           {agendaItems.length > 0 && (
             <ul style={{fontSize: 13, paddingLeft: 18, marginBottom: 12}}>
               {agendaItems.map((a) => (
