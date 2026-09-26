@@ -4,6 +4,7 @@ import {useEffect, useState} from 'react'
 import {Plus, CalendarDays, Pencil, Users, FileText} from 'lucide-react'
 import AppShell from '@/components/AppShell'
 import {api} from '@/lib/api'
+import {printAsPdf, escapeHtmlPublic as esc} from '@/lib/printPdf'
 import {getRole} from '@/lib/auth'
 import {
   Card, PageHeader, Table, Button, Modal, Field, ErrorBox, SuccessBox, Empty, Textarea,
@@ -199,6 +200,19 @@ export default function Meetings() {
     }
   }
 
+  function exportMinutesPdf() {
+    if (!detail || !minutes) return
+    const body = `
+      <h1>Meeting minutes</h1>
+      <p class="muted"><b>${esc(detail.title || '')}</b></p>
+      <p class="muted">${esc(new Date(detail.meeting_date).toLocaleString())}${detail.location ? ' · ' + esc(detail.location) : ''}</p>
+      <p><span class="badge ${minutes.status === 'approved' ? 'ok' : 'warn'}">${esc(minutes.status || 'draft')}</span></p>
+      <h2>Notes</h2>
+      <div class="notes">${esc(minutes.content || '')}</div>
+    `
+    printAsPdf(`Minutes - ${detail.title || 'meeting'}`, body)
+  }
+
   const memberName = (id: string, fallbackName?: string | null) => {
     if (fallbackName) return fallbackName
     const m = members.find((x) => x.id === id)
@@ -369,13 +383,16 @@ export default function Meetings() {
                   <p style={{fontSize: 13, marginTop: 10, whiteSpace: 'pre-wrap'}}>
                     {minutes.content}
                   </p>
-                  {canApprove && minutes.status !== 'approved' && (
-                    <div className="form-actions">
+                  <div className="form-actions">
+                    <Button type="button" variant="secondary" onClick={exportMinutesPdf}>
+                      Export PDF
+                    </Button>
+                    {canApprove && minutes.status !== 'approved' && (
                       <Button type="button" onClick={() => void approveMinutes()}>
                         Approve minutes
                       </Button>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               ) : canManage ? (
                 <form onSubmit={saveMinutes} style={{marginTop: 8}}>
