@@ -25,12 +25,19 @@ import {
   Stat,
 } from '@/components/UI'
 
+const naira = (v: any) => {
+  const n = Number(v)
+  if (!Number.isFinite(n)) return '\u20A60.00'
+  return '\u20A6' + n.toLocaleString('en-NG', {minimumFractionDigits: 2, maximumFractionDigits: 2})
+}
+
 export default function Finance() {
   const role = getRole()
 
   const [dues, setDues] = useState<any[]>([])
   const [members, setMembers] = useState<any[]>([])
 
+  const [viewDues, setViewDues] = useState<any>(null)
   const [open, setOpen] =
     useState<'dues' | 'tx' | null>(null)
 
@@ -261,6 +268,7 @@ export default function Finance() {
                 'Due',
                 'Paid',
                 'Status',
+                'Actions',
               ]}
               rows={dues.map((x) => {
                 const member =
@@ -289,9 +297,9 @@ export default function Finance() {
                     x.month,
                   ).padStart(2, '0')}`,
 
-                  x.amount_due,
+                  naira(x.amount_due),
 
-                  x.amount_paid,
+                  naira(x.amount_paid),
 
                   <span
                     className={
@@ -305,6 +313,13 @@ export default function Finance() {
                   >
                     {x.status}
                   </span>,
+                  <Button
+                    key="v"
+                    variant="secondary"
+                    onClick={() => setViewDues(x)}
+                  >
+                    View
+                  </Button>,
                 ]
               })}
             />
@@ -412,7 +427,7 @@ export default function Finance() {
                   key={m.id}
                   value={m.id}
                 >
-                  {m.member_no} — {m.full_name}
+                  {m.member_no} - {m.full_name}
                 </option>
               ))}
             </Select>
@@ -518,6 +533,32 @@ export default function Finance() {
               </Button>
             </div>
           </form>
+        </Modal>
+      )}
+
+      {viewDues && (
+        <Modal title="Dues record" onClose={() => setViewDues(null)}>
+          <p className="muted" style={{fontSize: 13}}>
+            Period: <b>{viewDues.year}-{String(viewDues.month).padStart(2, '0')}</b>
+          </p>
+          <p className="muted" style={{fontSize: 13}}>
+            Member: <b>{memberMap.get(viewDues.member_id)?.full_name || viewDues.member_id}</b>
+          </p>
+          <p className="muted" style={{fontSize: 13}}>
+            Due: <b>{naira(viewDues.amount_due)}</b>
+          </p>
+          <p className="muted" style={{fontSize: 13}}>
+            Paid: <b>{naira(viewDues.amount_paid)}</b>
+          </p>
+          <p className="muted" style={{fontSize: 13}}>
+            Status:{' '}
+            <span className={'badge ' + (viewDues.status === 'paid' ? 'green' : viewDues.status === 'partial' ? 'amber' : 'red')}>
+              {viewDues.status}
+            </span>
+          </p>
+          <div className="form-actions">
+            <Button variant="ghost" onClick={() => setViewDues(null)}>Close</Button>
+          </div>
         </Modal>
       )}
     </AppShell>
