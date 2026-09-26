@@ -273,22 +273,22 @@ export default function Finance() {
               rows={dues.map((x) => {
                 const member =
                   memberMap.get(x.member_id)
+                const displayName =
+                  x.member_name || member?.full_name || null
+                const displayNo =
+                  x.member_no || member?.member_no || null
 
                 return [
-                  <span>
-                    <b>
-                      {member?.member_no ||
-                        x.member_id}
-                    </b>
-
-                    {member?.full_name && (
+                  <span key="m">
+                    <b>{displayNo || displayName || 'Member'}</b>
+                    {displayName && (
                       <small
                         style={{
                           display: 'block',
                           opacity: 0.7,
                         }}
                       >
-                        {member.full_name}
+                        {displayName}
                       </small>
                     )}
                   </span>,
@@ -542,7 +542,7 @@ export default function Finance() {
             Period: <b>{viewDues.year}-{String(viewDues.month).padStart(2, '0')}</b>
           </p>
           <p className="muted" style={{fontSize: 13}}>
-            Member: <b>{memberMap.get(viewDues.member_id)?.full_name || viewDues.member_id}</b>
+            Member: <b>{viewDues.member_name || memberMap.get(viewDues.member_id)?.full_name || viewDues.member_no || 'Member'}</b>
           </p>
           <p className="muted" style={{fontSize: 13}}>
             Due: <b>{naira(viewDues.amount_due)}</b>
