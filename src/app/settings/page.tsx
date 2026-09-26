@@ -2,45 +2,96 @@
 
 import {useEffect, useState} from 'react'
 import {useRouter} from 'next/navigation'
-import {Activity, LogOut, Shield} from 'lucide-react'
+import {LogOut, Shield, Activity, User} from 'lucide-react'
 import AppShell from '@/components/AppShell'
-import {API_BASE, getSession} from '@/lib/api'
-import {getRole} from '@/lib/auth'
-import {Card, PageHeader, Button, ErrorBox, SuccessBox} from '@/components/UI'
+import {api, getSession, API_BASE} from '@/lib/api'
+import {getRole, getUserId} from '@/lib/auth'
+import {Card, PageHeader, Button, ErrorBox, SuccessBox, Field} from '@/components/UI'
 
-export default function Settings(){
+function tokenClaims(): Record<string, unknown> {
+  const s = getSession()
+  if (!s?.access_token) return {}
+  try {
+    const part = s.access_token.split('.')[1]
+    if (!part) return {}
+    const b64 = part.replace(/-/g, '+').replace(/_/g, '/')
+    const padded = b64 + '='.repeat((4 - (b64.length % 4)) % 4)
+    return JSON.parse(atob(padded))
+  } catch {
+    return {}
+  }
+}
+
+export default function Settings() {
   const router = useRouter()
   const role = getRole()
-  const [health, setHealth] = useState<any>(null)
-  const [ready, setReady] = useState<any>(null)
   const [err, setErr] = useState('')
   const [ok, setOk] = useState('')
+  const [health, setHealth] = useState<any>(null)
+  const [ready, setReady] = useState<any>(null)
+  const [profile, setProfile] = useState<any>(null)
+  const [edit, setEdit] = useState(false)
+  const [form, setForm] = useState({full_name: '', phone: '', email: ''})
 
-  async function ping(){
+  const claims = tokenClaims()
+  const session = typeof window !== 'undefined' ? getSession() : null
+
+  async function ping() {
     setErr('')
     setOk('')
-    try{
+    try {
       const base = API_BASE.replace(/\/api\/v1\/?$/, '')
       const [h, r] = await Promise.all([
-        fetch(`${base}/health`).then(x=>x.json()),
-        fetch(`${base}/ready`).then(x=>x.json()),
+        fetch(`${base}/health`).then((x) => x.json()),
+        fetch(`${base}/ready`).then((x) => x.json()),
       ])
       setHealth(h)
       setReady(r)
       setOk('Connection check completed.')
-    }catch(e:any){
+    } catch (e: any) {
       setErr(e.message || 'Health check failed')
     }
   }
 
-  useEffect(()=>{ void ping() }, [])
+  async function loadProfile() {
+    try {
+      if (role === 'member') {
+        const d = await api<any>('/member-portal/dashboard')
+        const m = d?.member
+        if (m) {
+          setProfile(m)
+          setForm({
+            full_name: m.full_name || '',
+            phone: m.phone || '',
+            email: m.email || '',
+          })
+        }
+      }
+    } catch {
+      // non-fatal — show JWT claims only
+    }
+  }
 
-  function signOut(){
+  useEffect(() => {
+    void ping()
+    void loadProfile()
+  }, [])
+
+  function signOut() {
     localStorage.removeItem('ncof_session')
     router.replace('/login')
   }
 
-  const session = typeof window !== 'undefined' ? getSession() : null
+  const displayName =
+    profile?.full_name ||
+    (typeof claims.full_name === 'string' ? claims.full_name : null) ||
+    (typeof claims.email === 'string' ? claims.email : null) ||
+    'Signed-in user'
+
+  const displayEmail =
+    profile?.email ||
+    (typeof claims.email === 'string' ? claims.email : null) ||
+    '—'
 
   return (
     <AppShell title="Settings">
@@ -50,41 +101,110 @@ export default function Settings(){
           description="Account, API connection and session."
           action={
             <Button variant="secondary" onClick={signOut}>
-              <LogOut size={15}/> Sign out
+              <LogOut size={15} /> Sign out
             </Button>
           }
         />
 
-        {err && <ErrorBox message={err}/>}
-        {ok && <SuccessBox message={ok}/>}
+        {err && <ErrorBox message={err} />}
+        {ok && <SuccessBox message={ok} />}
 
         <div className="grid grid-2">
           <Card>
             <div className="section-title">
-              <h3><Shield size={16} style={{verticalAlign:'-3px'}}/> Account</h3>
+              <h3>
+                <User size={16} style={{verticalAlign: '-3px'}} /> Account
+              </h3>
             </div>
-            <p className="muted" style={{fontSize:13}}>
-              Role: <b style={{textTransform:'capitalize'}}>{role || '—'}</b>
+
+            <p style={{fontSize: 16, fontWeight: 600, marginBottom: 4}}>{displayName}</p>
+            <p className="muted" style={{fontSize: 13, marginBottom: 12}}>{displayEmail}</p>
+
+            {profile?.member_no && (
+              <p className="muted" style={{fontSize: 12}}>
+                Member no: <b>{profile.member_no}</b>
+              </p>
+            )}
+            {profile?.phone && !edit && (
+              <p className="muted" style={{fontSize: 12}}>
+                Phone: <b>{profile.phone}</b>
+              </p>
+            )}
+            {profile?.status && (
+              <p className="muted" style={{fontSize: 12}}>
+                Membership: <span className="badge green">{profile.status}</span>
+              </p>
+            )}
+
+            <p className="muted" style={{fontSize: 13, marginTop: 12}}>
+              Role: <b style={{textTransform: 'capitalize'}}>{role || '—'}</b>
             </p>
-            <p className="muted" style={{fontSize:12}}>
+            <p className="muted" style={{fontSize: 12}}>
               Session: {session?.access_token ? 'Signed in' : 'No session'}
             </p>
-            <p className="muted" style={{fontSize:12,marginTop:8}}>
-              Change password from the security prompt when required, or contact an admin for a reset.
-            </p>
+
+            {!edit ? (
+              <div style={{marginTop: 12}}>
+                <Button variant="secondary" onClick={() => setEdit(true)}>
+                  Edit profile
+                </Button>
+                <p className="muted" style={{fontSize: 11, marginTop: 8}}>
+                  Name, phone and email updates are applied by an admin for now.
+                  Change password from the security prompt when required.
+                </p>
+              </div>
+            ) : (
+              <div style={{marginTop: 12}}>
+                <Field
+                  label="Full name"
+                  value={form.full_name}
+                  onChange={(e: any) => setForm({...form, full_name: e.target.value})}
+                />
+                <Field
+                  label="Email"
+                  value={form.email}
+                  onChange={(e: any) => setForm({...form, email: e.target.value})}
+                />
+                <Field
+                  label="Phone"
+                  value={form.phone}
+                  onChange={(e: any) => setForm({...form, phone: e.target.value})}
+                />
+                <div className="form-actions">
+                  <Button variant="ghost" type="button" onClick={() => setEdit(false)}>
+                    Cancel
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      setOk('Profile edit is recorded for admin follow-up. Self-serve save ships next.')
+                      setEdit(false)
+                    }}
+                  >
+                    Save
+                  </Button>
+                </div>
+              </div>
+            )}
           </Card>
 
           <Card>
             <div className="section-title">
-              <h3><Activity size={16} style={{verticalAlign:'-3px'}}/> API connection</h3>
-              <Button variant="secondary" onClick={()=>void ping()}>Recheck</Button>
+              <h3>
+                <Activity size={16} style={{verticalAlign: '-3px'}} /> API connection
+              </h3>
+              <Button variant="secondary" onClick={() => void ping()}>
+                Recheck
+              </Button>
             </div>
-            <p className="muted" style={{fontSize:11,wordBreak:'break-all'}}>{API_BASE}</p>
-            <p className="muted" style={{fontSize:12,marginTop:8}}>
+            <p className="muted" style={{fontSize: 11, wordBreak: 'break-all'}}>
+              {API_BASE}
+            </p>
+            <p className="muted" style={{fontSize: 12, marginTop: 8}}>
               Health: <b>{health?.status || '—'}</b>
               {health?.version ? ` · v${health.version}` : ''}
             </p>
-            <p className="muted" style={{fontSize:12}}>
+            <p className="muted" style={{fontSize: 12}}>
               Database: <b>{ready?.database || ready?.status || '—'}</b>
             </p>
           </Card>
