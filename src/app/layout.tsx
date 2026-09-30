@@ -5,6 +5,11 @@ export const metadata: Metadata = {
   title: 'NCOF Platform — Association operations',
   description:
     'One platform for cooperative and association members, dues, meetings, elections and governance.',
+  icons: {
+    icon: '/ncof-logo.svg',
+    shortcut: '/ncof-logo.svg',
+    apple: '/ncof-logo.svg',
+  },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
