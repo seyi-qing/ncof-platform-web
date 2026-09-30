@@ -20,6 +20,7 @@ import {
 import {clearSession} from '@/lib/api'
 import {getRole} from '@/lib/auth'
 import {APP_VERSION, API_VERSION_HINT} from '@/lib/version'
+import NcofLogo from '@/components/NcofLogo'
 
 const items = [
   ['/dashboard', 'Dashboard', LayoutDashboard, 'all'],
@@ -58,12 +59,14 @@ export default function Sidebar({
   return (
     <aside className={'sidebar ' + (open ? 'open' : '')}>
       <div className="brand">
-        <div className="logo">N</div>
+        <div className="brand-logo">
+          <NcofLogo size={40} priority />
+        </div>
         <div>
           <b>NCOF</b>
           <span>Association Platform</span>
         </div>
-        <button className="mobilemenu" type="button" onClick={onClose}>
+        <button className="mobilemenu" type="button" onClick={onClose} aria-label="Close menu">
           <X size={18} />
         </button>
       </div>
