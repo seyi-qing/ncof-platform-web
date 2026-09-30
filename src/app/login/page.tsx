@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { ShieldCheck } from 'lucide-react'
 import { api, setSession } from '@/lib/api'
 import { Button, ErrorBox, Field } from '@/components/UI'
+import NcofLogo from '@/components/NcofLogo'
 
 export default function Login() {
   const router = useRouter()
@@ -47,8 +48,8 @@ export default function Login() {
   return (
     <div className="login-page">
       <div className="login-brand">
-        <Link href="/" className="logo" aria-label="NCOF home" style={{ textDecoration: 'none' }}>
-          N
+        <Link href="/" className="login-logo-link" aria-label="NCOF home">
+          <NcofLogo size={92} priority />
         </Link>
 
         <h1>One platform for NCOF operations.</h1>
@@ -67,7 +68,8 @@ export default function Login() {
 
       <div className="login-box">
         <div className="login-card">
-          <ShieldCheck size={28} color="#3b82f6" aria-hidden />
+          <NcofLogo size={52} />
+          <ShieldCheck size={22} color="#3b82f6" aria-hidden />
 
           <h2>Sign in</h2>
 
