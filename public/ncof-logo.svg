@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+<title id="title">NCOF logo</title><desc id="desc">Four colorful human forms arranged in a circle around a shared center.</desc>
+<rect width="512" height="512" rx="72" fill="#000"/>
+<g stroke-linecap="round" stroke-linejoin="round">
+  <circle cx="256" cy="88" r="26" fill="#ffad00"/>
+  <path d="M177 105c22 36 58 55 100 56 35 1 67-10 93-37" fill="none" stroke="#ff8a00" stroke-width="34"/>
+  <path d="M318 130c-9 25-25 48-48 69" fill="none" stroke="#ff8a00" stroke-width="30"/>
+  <circle cx="408" cy="247" r="26" fill="#20c84a"/>
+  <path d="M383 158c-31 24-48 57-49 97-1 34 10 67 35 95" fill="none" stroke="#16c94a" stroke-width="34"/>
+  <path d="M368 334c-24-9-47-25-68-47" fill="none" stroke="#16c94a" stroke-width="30"/>
+  <circle cx="256" cy="424" r="26" fill="#079bd6"/>
+  <path d="M335 407c-22-36-58-55-100-56-35-1-67 10-93 37" fill="none" stroke="#079bd6" stroke-width="34"/>
+  <path d="M194 382c9-25 25-48 48-69" fill="none" stroke="#079bd6" stroke-width="30"/>
+  <circle cx="104" cy="247" r="26" fill="#ff4c43"/>
+  <path d="M129 336c31-24 48-57 49-97 1-34-10-67-35-95" fill="none" stroke="#ff4c43" stroke-width="34"/>
+  <path d="M144 178c24 9 47 25 68 47" fill="none" stroke="#ff4c43" stroke-width="30"/>
+</g>
+</svg>
